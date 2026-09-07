@@ -111,7 +111,7 @@
       <div class="grid grid-cols-2 gap-2.5">
         <!-- Balance Card -->
         <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3 shadow-none">
-          <p class="text-[10px] font-bold text-[#a1a1aa] uppercase tracking-wider">Balans (Exness)</p>
+          <p class="text-[10px] font-bold text-[#a1a1aa] tracking-wider uppercase">BALANS <span class="lowercase text-zinc-400 font-normal">(exness)</span></p>
           <div class="flex items-baseline gap-1 mt-1">
             <span class="text-lg font-extrabold text-white tracking-tight" id="accBalance">$0.00</span>
           </div>
@@ -128,11 +128,11 @@
             <span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b] pulse-dot"></span>
           </div>
           <div class="flex items-baseline gap-1 mt-1">
-            <span class="text-lg font-extrabold text-[#f59e0b] tracking-tight" id="livePrice">0.00</span>
+            <span class="text-lg font-extrabold text-[#f59e0b] tracking-tight" id="livePrice">0.000</span>
           </div>
           <div class="flex items-center justify-between mt-2 text-[10px] text-[#a1a1aa] border-t border-[#1c202c] pt-1.5">
-            <span>Bid: <b id="bidPrice" class="text-white">0.0</b></span>
-            <span>Ask: <b id="askPrice" class="text-white">0.0</b></span>
+            <span>Bid: <b id="bidPrice" class="text-white">0.000</b></span>
+            <span>Ask: <b id="askPrice" class="text-white">0.000</b></span>
           </div>
         </div>
       </div>
@@ -794,11 +794,14 @@
           document.getElementById('accEquity').textContent = `$${parseFloat(data.account.equity).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
 
-        // 2. Price
+        // 2. Price (Exness 3-decimal real-time precision)
         if (data.price) {
-          document.getElementById('livePrice').textContent = data.price.mid ? data.price.mid.toFixed(2) : '0.00';
-          document.getElementById('bidPrice').textContent = data.price.bid ? data.price.bid.toFixed(2) : '0.0';
-          document.getElementById('askPrice').textContent = data.price.ask ? data.price.ask.toFixed(2) : '0.0';
+          const midNum = parseFloat(data.price.mid || 0);
+          const bidNum = parseFloat(data.price.bid || 0);
+          const askNum = parseFloat(data.price.ask || 0);
+          document.getElementById('livePrice').textContent = midNum ? midNum.toFixed(3) : '0.000';
+          document.getElementById('bidPrice').textContent = bidNum ? bidNum.toFixed(3) : '0.000';
+          document.getElementById('askPrice').textContent = askNum ? askNum.toFixed(3) : '0.000';
         }
 
         // 3. Kill Switch & Risk
@@ -910,7 +913,12 @@
     function renderSignals(signals) {
       const container = document.getElementById('signalsList');
       if (signals.length === 0) {
-        container.innerHTML = '<p class="text-xs text-[#a1a1aa] text-center py-2.5">Signallar mavjud emas</p>';
+        container.innerHTML = `
+          <div class="text-center py-5 border border-dashed border-[#1c202c] rounded-sm p-4">
+            <p class="text-xs text-[#a1a1aa] font-semibold">Hozircha yangi signallar mavjud emas</p>
+            <p class="text-[10px] text-zinc-500 mt-1">Telegram kanallar jonli kuzatilmoqda. Real signallar kelishi bilan bu yerda aks etadi.</p>
+          </div>
+        `;
         return;
       }
 
