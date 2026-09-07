@@ -1,0 +1,36 @@
+# Environments and Virtualenv
+venv/
+.venv/
+env/
+ENV/
+
+# Secrets & Environment Variables (CRITICAL)
+.env
+.env.*
+!.env.example
+
+# Telegram Userbot Sessions & Auth Data
+data/*.session
+data/*.session-journal
+data/userbot_session*
+*.session
+
+# Database and Runtime Logs
+data/*.db
+data/*.db-journal
+data/*.log
+*.log
+
+# Cloudflared Binary
+cloudflared
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# OS and Editor files
+.DS_Store
+.idea/
+.vscode/
