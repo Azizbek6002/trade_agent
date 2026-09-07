@@ -81,7 +81,7 @@ class ChatMessageRequest(BaseModel):
 class AddChannelRequest(BaseModel):
     channel_id: str = Field(..., description="Channel ID or username")
     title: str = Field(..., description="Channel title")
-    weight: Optional[float] = Field(1.5, description="Channel source weight")
+    weight: Optional[float] = Field(1.5, ge=1.0, le=10.0, description="Channel source weight (1.0 to 10.0)")
 
 
 class DeleteChannelRequest(BaseModel):
@@ -304,13 +304,24 @@ async def get_channels_endpoint() -> Dict[str, Any]:
 async def add_channel_endpoint(req: AddChannelRequest) -> Dict[str, Any]:
     """Adds a new channel to monitor."""
     try:
+        chan_id = req.channel_id.strip()
+        title = req.title.strip()
+        if not chan_id or not title:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Kanal nomi va ID kiritilishi shart"})
+
+        weight = float(req.weight if req.weight is not None else 1.5)
+        if weight < 1.0 or weight > 10.0:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Kanal og'irligi 1.0 dan 10.0 gacha bo'lishi shart"})
+
+        weight = round(max(1.0, min(10.0, weight)), 2)
+
         await db.add_channel(
-            channel_id=req.channel_id,
-            title=req.title,
-            weight=req.weight or 1.5
+            channel_id=chan_id,
+            title=title,
+            weight=weight
         )
         channels = await db.get_active_channels()
-        return {"success": True, "message": f"Kanal '{req.title}' muvaffaqiyatli qo'shildi", "channels": channels}
+        return {"success": True, "message": f"Kanal '{title}' (og'irlik: {weight}) muvaffaqiyatli qo'shildi", "channels": channels}
     except Exception as e:
         logger.error(f"Error adding channel: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})

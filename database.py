@@ -114,6 +114,7 @@ class Database:
     # 1. CHANNELS CRUD
     # ==========================================
     async def add_channel(self, channel_id: str, title: str, weight: float = config.WEIGHT_CHANNEL_DEFAULT):
+        clamped_weight = round(max(1.0, min(10.0, float(weight))), 2)
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """
@@ -121,7 +122,7 @@ class Database:
                 VALUES (?, ?, ?, 1)
                 ON CONFLICT(channel_id) DO UPDATE SET title = excluded.title, is_active = 1, weight = excluded.weight
                 """,
-                (str(channel_id), title, weight)
+                (str(channel_id), title, clamped_weight)
             )
             await db.commit()
 

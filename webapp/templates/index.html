@@ -346,8 +346,14 @@
         <div class="space-y-2 text-xs">
           <input type="text" id="newChanTitle" placeholder="Kanal nomi (masalan: TraderStage VIP)" class="w-full bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
           <div class="grid grid-cols-2 gap-2">
-            <input type="text" id="newChanId" placeholder="ID yoki @username" class="bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
-            <input type="number" id="newChanWeight" step="0.1" value="1.5" placeholder="Og'irlik (1.5)" class="bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
+            <div>
+              <input type="text" id="newChanId" placeholder="ID yoki @username" class="w-full bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
+              <span class="text-[9px] text-[#a1a1aa] ml-0.5 mt-0.5 block">Format: @kanal yoki ID</span>
+            </div>
+            <div>
+              <input type="number" id="newChanWeight" min="1" max="10" step="0.1" value="1.5" placeholder="Og'irlik (1 - 10)" class="w-full bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
+              <span class="text-[9px] text-[#a1a1aa] ml-0.5 mt-0.5 block">Chegara: <b class="text-[#f59e0b]">1.0 – 10.0</b></span>
+            </div>
           </div>
           <button onclick="addChannel()" class="w-full py-2 bg-[#2962ff] hover:bg-[#1e4bd8] text-white font-bold rounded-sm transition">
             Kanalni Saqlash
@@ -727,7 +733,8 @@
     async function addChannel() {
       const title = document.getElementById('newChanTitle').value.trim();
       let chanId = document.getElementById('newChanId').value.trim();
-      const weight = parseFloat(document.getElementById('newChanWeight').value) || 1.5;
+      const rawWeight = document.getElementById('newChanWeight').value;
+      const weightVal = parseFloat(rawWeight);
 
       // Auto-strip t.me/ prefixes if user pasted link
       chanId = chanId.replace(/^https?:\/\/t\.me\//i, '').replace(/^t\.me\//i, '');
@@ -736,6 +743,13 @@
         showToast('Kanal nomi va ID kiriting', '⚠️');
         return;
       }
+
+      if (isNaN(weightVal) || weightVal < 1.0 || weightVal > 10.0) {
+        showToast("Og'irlik 1.0 dan 10.0 gacha bo'lishi shart! (1 - 10)", '⚠️');
+        return;
+      }
+
+      const weight = Math.round(weightVal * 10) / 10;
 
       try {
         const res = await apiFetch('/api/channels', {
