@@ -25,8 +25,25 @@ def get_app_keyboard() -> InlineKeyboardMarkup:
         ])
 
 
+def is_admin(user_id: int | None) -> bool:
+    """Check if the user is authorized administrator."""
+    if not user_id:
+        return False
+    return bool(config.ADMIN_TELEGRAM_ID and user_id == config.ADMIN_TELEGRAM_ID)
+
+
+DENIED_MESSAGE = (
+    "❌ **Kechirasiz, siz bundan foydalana olmaysiz!**\n\n"
+    "O'zingizga boshqa agent qilish uchun @coder_zik ga murojaat qiling."
+)
+
+
 @dp.callback_query(F.data == "local_app_info")
 async def local_app_info_handler(callback: types.CallbackQuery):
+    if not is_admin(callback.from_user.id if callback.from_user else None):
+        await callback.answer("Siz bundan foydalana olmaysiz! @coder_zik ga murojaat qiling.", show_alert=True)
+        return
+
     await callback.answer()
     await callback.message.answer(
         f"📱 **RTB Mini App havolasi:**\n`{config.WEBAPP_URL}`\n\n"
@@ -38,6 +55,11 @@ async def local_app_info_handler(callback: types.CallbackQuery):
 @dp.message(CommandStart())
 @dp.message(Command("app", "webapp"))
 async def start_cmd(message: types.Message):
+    user_id = message.from_user.id if message.from_user else None
+    if not is_admin(user_id):
+        await message.answer(DENIED_MESSAGE, parse_mode="Markdown")
+        return
+
     welcome_text = (
         "🤖 **ROBO TRADER BOY (RTB) v2.0 — XAUUSD AI SYSTEM**\n\n"
         "Assalomu alaykum ustoz! Barcha boshqaruv paneli, real vaqt bozori, "
@@ -54,6 +76,11 @@ async def handle_direct_messages(message: types.Message):
     1. If message is a trade signal (BUY/SELL), parses with Gemini Pro and auto-executes on MT5.
     2. Otherwise, directs user to the Mini App or provides concise AI response.
     """
+    user_id = message.from_user.id if message.from_user else None
+    if not is_admin(user_id):
+        await message.answer(DENIED_MESSAGE, parse_mode="Markdown")
+        return
+
     text = (message.text or "").strip()
     if not text or text.startswith("/"):
         return
