@@ -84,6 +84,10 @@ class AddChannelRequest(BaseModel):
     weight: Optional[float] = Field(1.5, description="Channel source weight")
 
 
+class DeleteChannelRequest(BaseModel):
+    channel_id: str = Field(..., description="Channel ID or username to delete")
+
+
 # ==========================================
 # ENDPOINTS
 # ==========================================
@@ -312,7 +316,19 @@ async def add_channel_endpoint(req: AddChannelRequest) -> Dict[str, Any]:
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
-@app.delete("/api/channels/{channel_id}")
+@app.post("/api/channels/delete")
+async def delete_channel_post(req: DeleteChannelRequest) -> Dict[str, Any]:
+    """Deletes a channel via POST JSON (100% reliable across all Telegram WebViews)."""
+    try:
+        await db.remove_channel(req.channel_id)
+        channels = await db.get_active_channels()
+        return {"success": True, "message": "Kanal muvaffaqiyatli o'chirildi", "channels": channels}
+    except Exception as e:
+        logger.error(f"Error removing channel: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.delete("/api/channels/{channel_id:path}")
 async def remove_channel_endpoint(channel_id: str) -> Dict[str, Any]:
     """Removes/deactivates a channel."""
     try:

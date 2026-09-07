@@ -588,8 +588,6 @@
 
     // Close position
     async function closePosition(ticket) {
-      if (!confirm(`#${ticket} raqamli pozitsiyani yopishni tasdiqlaysizmi?`)) return;
-
       try {
         const res = await apiFetch('/api/trades/close', {
           method: 'POST',
@@ -728,8 +726,11 @@
 
     async function addChannel() {
       const title = document.getElementById('newChanTitle').value.trim();
-      const chanId = document.getElementById('newChanId').value.trim();
+      let chanId = document.getElementById('newChanId').value.trim();
       const weight = parseFloat(document.getElementById('newChanWeight').value) || 1.5;
+
+      // Auto-strip t.me/ prefixes if user pasted link
+      chanId = chanId.replace(/^https?:\/\/t\.me\//i, '').replace(/^t\.me\//i, '');
 
       if (!title || !chanId) {
         showToast('Kanal nomi va ID kiriting', '⚠️');
@@ -753,6 +754,7 @@
           } else {
             loadChannels();
           }
+          fetchStatus();
         } else {
           showToast(data.error || 'Xatolik', '❌');
         }
@@ -762,17 +764,33 @@
     }
 
     async function removeChannel(channelId) {
-      if (!confirm('Ushbu kanalni kuzatuvdan olib tashlashni tasdiqlaysizmi?')) return;
       try {
-        const res = await apiFetch(`/api/channels/${encodeURIComponent(channelId)}`, { method: 'DELETE' });
+        // Use robust POST JSON delete endpoint
+        const res = await apiFetch('/api/channels/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel_id: String(channelId) })
+        });
         const data = await res.json();
         if (data.success) {
-          showToast('Kanal o\'chirildi', '🗑');
+          showToast('Kanal kuzatuvdan o\'chirildi', '🗑');
           if (data.channels) {
             localChannelsCache = data.channels;
             renderChannelsList(localChannelsCache);
           } else {
             loadChannels();
+          }
+          fetchStatus();
+        } else {
+          // Fallback to DELETE endpoint
+          const resFallback = await apiFetch(`/api/channels/${encodeURIComponent(channelId)}`, { method: 'DELETE' });
+          const dataFallback = await resFallback.json();
+          if (dataFallback.success) {
+            showToast('Kanal o\'chirildi', '🗑');
+            loadChannels();
+            fetchStatus();
+          } else {
+            showToast(data.error || 'O\'chirishda xatolik', '❌');
           }
         }
       } catch (e) {

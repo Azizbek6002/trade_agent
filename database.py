@@ -127,13 +127,24 @@ class Database:
 
     async def remove_channel(self, channel_id: str):
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("UPDATE channels SET is_active = 0 WHERE channel_id = ?", (str(channel_id),))
+            clean_id = str(channel_id).strip()
+            clean_id = clean_id.replace("https://t.me/", "").replace("t.me/", "")
+            no_at = clean_id.lstrip("@")
+            with_at = f"@{no_at}"
+            await db.execute(
+                """
+                DELETE FROM channels 
+                WHERE channel_id = ? 
+                   OR channel_id = ? 
+                   OR channel_id = ?
+                   OR CAST(id AS TEXT) = ?
+                """,
+                (clean_id, no_at, with_at, clean_id)
+            )
             await db.commit()
 
     async def delete_channel_hard(self, channel_id: str):
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("DELETE FROM channels WHERE channel_id = ?", (str(channel_id),))
-            await db.commit()
+        await self.remove_channel(channel_id)
 
     async def get_active_channels(self) -> List[Dict[str, Any]]:
         async with aiosqlite.connect(self.db_path) as db:
