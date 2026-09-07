@@ -103,10 +103,11 @@ async def get_system_status() -> Dict[str, Any]:
         news_allowed, news_reason = await news_filter.is_trading_allowed()
         upcoming_news = await news_filter.fetch_high_impact_news()
 
-        # 4. Signals and Trades
+        # 4. Signals, Trades, and Channels
         latest_signals = await db.get_latest_signals(limit=10)
         trade_history = await db.get_trade_history(limit=10)
         performance = await db.get_performance_summary()
+        active_channels = await db.get_active_channels()
 
         return {
             "success": True,
@@ -130,7 +131,8 @@ async def get_system_status() -> Dict[str, Any]:
             "open_positions": open_positions,
             "latest_signals": latest_signals,
             "trade_history": trade_history,
-            "performance": performance
+            "performance": performance,
+            "channels": active_channels
         }
     except Exception as e:
         logger.error(f"Error fetching Mini App status: {e}", exc_info=True)
@@ -278,7 +280,8 @@ async def add_channel_endpoint(req: AddChannelRequest) -> Dict[str, Any]:
             title=req.title,
             weight=req.weight or 1.5
         )
-        return {"success": True, "message": f"Kanal '{req.title}' muvaffaqiyatli qo'shildi"}
+        channels = await db.get_active_channels()
+        return {"success": True, "message": f"Kanal '{req.title}' muvaffaqiyatli qo'shildi", "channels": channels}
     except Exception as e:
         logger.error(f"Error adding channel: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
@@ -289,7 +292,8 @@ async def remove_channel_endpoint(channel_id: str) -> Dict[str, Any]:
     """Removes/deactivates a channel."""
     try:
         await db.remove_channel(channel_id)
-        return {"success": True, "message": "Kanal kuzatuvdan olib tashlandi"}
+        channels = await db.get_active_channels()
+        return {"success": True, "message": "Kanal kuzatuvdan olib tashlandi", "channels": channels}
     except Exception as e:
         logger.error(f"Error removing channel: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})

@@ -14,19 +14,20 @@
       theme: {
         extend: {
           colors: {
-            dark: {
-              950: '#070A10',
-              900: '#0D1321',
-              850: '#121A2D',
-              800: '#172033',
-              700: '#23304A',
-              600: '#344566'
-            },
-            gold: {
-              400: '#FCD34D',
-              500: '#F59E0B',
-              600: '#D97706'
+            brand: {
+              blue: '#2962ff',
+              blueHover: '#1e4bd8',
+              gold: '#f59e0b',
+              goldLight: '#fbbf24',
+              dark: '#000000',
+              card: '#0c0d12',
+              cardBorder: '#1c202c',
+              subtext: '#a1a1aa'
             }
+          },
+          borderRadius: {
+            sm: '2px',
+            md: '4px'
           }
         }
       }
@@ -34,7 +35,9 @@
   </script>
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #000000;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
@@ -43,172 +46,172 @@
     }
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(1.15); }
+      50% { opacity: 0.3; transform: scale(1.1); }
     }
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-thumb { background: #23304A; border-radius: 4px; }
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-thumb { background: #1c202c; border-radius: 2px; }
     ::-webkit-scrollbar-track { background: transparent; }
   </style>
 </head>
-<body class="bg-dark-950 text-slate-100 min-h-screen pb-16 antialiased selection:bg-gold-500 selection:text-black">
+<body class="bg-black text-white min-h-screen pb-14 antialiased selection:bg-[#2962ff] selection:text-white">
 
   <!-- TOP HEADER -->
-  <header class="sticky top-0 z-40 bg-dark-900/95 backdrop-blur-md border-b border-dark-700/60 px-4 py-3">
+  <header class="sticky top-0 z-40 bg-black/95 backdrop-blur-md border-b border-[#1c202c] px-3.5 py-2.5">
     <div class="flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-gold-600 to-amber-400 flex items-center justify-center font-black text-dark-950 text-lg shadow-lg shadow-gold-500/20">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-sm bg-[#2962ff] flex items-center justify-center font-black text-white text-sm shadow-sm">
           ⚡
         </div>
         <div>
           <div class="flex items-center gap-1.5">
-            <h1 class="font-extrabold text-sm tracking-wider uppercase text-white">RTB v2.0</h1>
-            <span class="text-[10px] bg-gold-500/20 text-gold-400 font-bold px-1.5 py-0.5 rounded border border-gold-500/30">XAUUSD AI</span>
+            <h1 class="font-extrabold text-xs tracking-wider uppercase text-white">RTB v2.0</h1>
+            <span class="text-[9px] bg-[#f59e0b]/15 text-[#f59e0b] font-bold px-1.5 py-0.5 rounded-sm border border-[#f59e0b]/30">XAUUSD AI</span>
           </div>
-          <p id="userGreeting" class="text-[11px] text-slate-400">Ustoz boshqaruv paneli</p>
+          <p id="userGreeting" class="text-[10px] text-[#a1a1aa]">Ustoz boshqaruv paneli</p>
         </div>
       </div>
 
       <div class="flex items-center gap-2">
-        <div id="statusBadge" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+        <div id="statusBadge" class="flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
           <span id="statusText">ONLINE</span>
         </div>
       </div>
     </div>
 
-    <!-- HORIZONTAL SCROLLABLE TABS NAV -->
-    <div class="flex overflow-x-auto no-scrollbar space-x-1.5 mt-3 pt-1 border-t border-dark-800">
-      <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gold-500 text-dark-950 transition shadow-sm">
+    <!-- MINIMALIST SHARP NAVIGATION TABS -->
+    <div class="flex overflow-x-auto no-scrollbar space-x-1 mt-2.5 pt-1 border-t border-[#1c202c]">
+      <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn whitespace-nowrap px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider bg-[#2962ff] text-white border border-[#2962ff] transition">
         📊 Dashboard
       </button>
-      <button onclick="switchTab('ai-chat')" id="tab-ai-chat" class="tab-btn whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition">
+      <button onclick="switchTab('ai-chat')" id="tab-ai-chat" class="tab-btn whitespace-nowrap px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] bg-[#0c0d12] hover:text-white border border-[#1c202c] transition">
         🤖 AI Chat
       </button>
-      <button onclick="switchTab('statistics')" id="tab-statistics" class="tab-btn whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition">
+      <button onclick="switchTab('statistics')" id="tab-statistics" class="tab-btn whitespace-nowrap px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] bg-[#0c0d12] hover:text-white border border-[#1c202c] transition">
         📈 Statistika
       </button>
-      <button onclick="switchTab('risk')" id="tab-risk" class="tab-btn whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition">
+      <button onclick="switchTab('risk')" id="tab-risk" class="tab-btn whitespace-nowrap px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] bg-[#0c0d12] hover:text-white border border-[#1c202c] transition">
         🛡 Risk
       </button>
-      <button onclick="switchTab('channels')" id="tab-channels" class="tab-btn whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition">
+      <button onclick="switchTab('channels')" id="tab-channels" class="tab-btn whitespace-nowrap px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] bg-[#0c0d12] hover:text-white border border-[#1c202c] transition">
         ⚙️ Kanallar
       </button>
     </div>
   </header>
 
   <!-- MAIN CONTAINER -->
-  <main class="max-w-md mx-auto px-4 py-4 space-y-4">
+  <main class="max-w-md mx-auto px-3.5 py-3 space-y-3">
 
     <!-- ======================================================== -->
     <!-- TAB 1: DASHBOARD & LIVE POSITIONS -->
     <!-- ======================================================== -->
-    <div id="content-dashboard" class="tab-content space-y-4">
+    <div id="content-dashboard" class="tab-content space-y-3">
 
       <!-- Live Balance & XAUUSD Market Cards -->
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-2 gap-2.5">
         <!-- Balance Card -->
-        <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-3.5 shadow-sm">
-          <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Balans (Exness)</p>
+        <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3 shadow-none">
+          <p class="text-[10px] font-bold text-[#a1a1aa] uppercase tracking-wider">Balans (Exness)</p>
           <div class="flex items-baseline gap-1 mt-1">
-            <span class="text-xl font-bold text-white tracking-tight" id="accBalance">$0.00</span>
+            <span class="text-lg font-extrabold text-white tracking-tight" id="accBalance">$0.00</span>
           </div>
-          <div class="flex items-center justify-between mt-2 text-[10px] text-slate-400 border-t border-dark-800 pt-1.5">
+          <div class="flex items-center justify-between mt-2 text-[10px] text-[#a1a1aa] border-t border-[#1c202c] pt-1.5">
             <span>Equity:</span>
-            <span id="accEquity" class="font-semibold text-slate-300">$0.00</span>
+            <span id="accEquity" class="font-bold text-white">$0.00</span>
           </div>
         </div>
 
         <!-- Live Price Card -->
-        <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-3.5 shadow-sm relative overflow-hidden">
+        <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3 shadow-none relative">
           <div class="flex items-center justify-between">
-            <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">XAUUSD Narxi</p>
-            <span class="w-2 h-2 rounded-full bg-gold-400 pulse-dot"></span>
+            <p class="text-[10px] font-bold text-[#a1a1aa] uppercase tracking-wider">XAUUSD Narxi</p>
+            <span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b] pulse-dot"></span>
           </div>
           <div class="flex items-baseline gap-1 mt-1">
-            <span class="text-xl font-bold text-gold-400 tracking-tight" id="livePrice">0.00</span>
+            <span class="text-lg font-extrabold text-[#f59e0b] tracking-tight" id="livePrice">0.00</span>
           </div>
-          <div class="flex items-center justify-between mt-2 text-[10px] text-slate-400 border-t border-dark-800 pt-1.5">
-            <span>Bid: <b id="bidPrice" class="text-slate-300">0.0</b></span>
-            <span>Ask: <b id="askPrice" class="text-slate-300">0.0</b></span>
+          <div class="flex items-center justify-between mt-2 text-[10px] text-[#a1a1aa] border-t border-[#1c202c] pt-1.5">
+            <span>Bid: <b id="bidPrice" class="text-white">0.0</b></span>
+            <span>Ask: <b id="askPrice" class="text-white">0.0</b></span>
           </div>
         </div>
       </div>
 
       <!-- Open Positions Card -->
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
+        <div class="flex items-center justify-between mb-2.5">
+          <h2 class="text-[11px] font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
             💼 Ochiq Pozitsiyalar
           </h2>
-          <span id="posCountBadge" class="text-[10px] bg-dark-800 text-slate-400 font-bold px-2 py-0.5 rounded-full">0 ta</span>
+          <span id="posCountBadge" class="text-[10px] bg-[#1c202c] text-[#a1a1aa] font-bold px-1.5 py-0.5 rounded-sm">0 ta</span>
         </div>
 
         <div id="positionsList" class="space-y-2">
-          <p class="text-xs text-slate-500 text-center py-4">Hozirda ochiq pozitsiya mavjud emas</p>
+          <p class="text-xs text-[#a1a1aa] text-center py-3">Hozirda ochiq pozitsiya mavjud emas</p>
         </div>
       </div>
 
       <!-- Quick Signals Feed -->
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
+        <div class="flex items-center justify-between mb-2.5">
+          <h2 class="text-[11px] font-bold uppercase tracking-wider text-white">
             📡 Oxirgi Signallar
           </h2>
-          <span class="text-[10px] text-slate-500">TraderStage & VIP</span>
+          <span class="text-[10px] text-[#a1a1aa]">TraderStage & VIP</span>
         </div>
         <div id="signalsList" class="space-y-2">
-          <p class="text-xs text-slate-500 text-center py-3">Signallar yuklanmoqda...</p>
+          <p class="text-xs text-[#a1a1aa] text-center py-2.5">Signallar yuklanmoqda...</p>
         </div>
       </div>
     </div>
 
 
     <!-- ======================================================== -->
-    <!-- TAB 2: AI CHAT & MASLAHATCHI (GEMINI PRO) -->
+    <!-- TAB 2: AI CHAT (GEMINI PRO) -->
     <!-- ======================================================== -->
-    <div id="content-ai-chat" class="tab-content space-y-4 hidden">
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm">
-        <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+    <div id="content-ai-chat" class="tab-content space-y-3 hidden">
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
+        <div class="flex items-center justify-between pb-2.5 border-b border-[#1c202c]">
           <div class="flex items-center gap-2">
-            <span class="text-lg">🤖</span>
+            <div class="w-6 h-6 rounded-sm bg-[#2962ff] text-white font-black text-xs flex items-center justify-center">AI</div>
             <div>
               <h3 class="text-xs font-bold text-white uppercase tracking-wider">RTB Senior AI Maslahatchi</h3>
-              <p class="text-[10px] text-slate-400">Gemini Pro • Classica, SnR & Liquidity tahlili</p>
+              <p class="text-[10px] text-[#a1a1aa]">Gemini Pro • Classica, SnR & Likvidlik</p>
             </div>
           </div>
-          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gold-500/20 text-gold-400">Faol</span>
+          <span class="px-2 py-0.5 rounded-sm text-[10px] font-bold bg-[#2962ff]/15 text-[#2962ff] border border-[#2962ff]/30">Faol</span>
         </div>
 
         <!-- Suggestion Chips -->
-        <div class="flex gap-1.5 overflow-x-auto py-2.5 no-scrollbar text-[11px]">
-          <button onclick="sendQuickPrompt('Oltin (XAUUSD) bo\'yicha hozirgi bozor tahlili va trend qanday?')" class="whitespace-nowrap px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-300 border border-dark-700 transition">
+        <div class="flex gap-1.5 overflow-x-auto py-2 no-scrollbar text-[11px]">
+          <button onclick="sendQuickPrompt('Oltin (XAUUSD) bo\'yicha hozirgi bozor tahlili va trend qanday?')" class="whitespace-nowrap px-2.5 py-1 rounded-sm bg-black hover:bg-[#1c202c] text-[#a1a1aa] hover:text-white border border-[#1c202c] transition">
             💡 Bozor tahlili
           </button>
-          <button onclick="sendQuickPrompt('Hozirgi asosiy SnR va likvidlik zonalari qayerda?')" class="whitespace-nowrap px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-300 border border-dark-700 transition">
+          <button onclick="sendQuickPrompt('Hozirgi asosiy SnR va likvidlik zonalari qayerda?')" class="whitespace-nowrap px-2.5 py-1 rounded-sm bg-black hover:bg-[#1c202c] text-[#a1a1aa] hover:text-white border border-[#1c202c] transition">
             🎯 SnR & Likvidlik
           </button>
-          <button onclick="sendQuickPrompt('Bugungi iqtisodiy yangiliklar (CPI/NFP) holati qanday?')" class="whitespace-nowrap px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-300 border border-dark-700 transition">
-            📅 Yangiliklar ta'siri
+          <button onclick="sendQuickPrompt('Bugungi iqtisodiy yangiliklar (CPI/NFP) holati qanday?')" class="whitespace-nowrap px-2.5 py-1 rounded-sm bg-black hover:bg-[#1c202c] text-[#a1a1aa] hover:text-white border border-[#1c202c] transition">
+            📅 Yangiliklar
           </button>
         </div>
 
         <!-- Chat Messages Container -->
-        <div id="chat-messages" class="h-80 overflow-y-auto bg-dark-950/80 border border-dark-800/80 p-3 rounded-xl space-y-3 text-xs">
+        <div id="chat-messages" class="h-80 overflow-y-auto bg-black border border-[#1c202c] p-2.5 rounded-sm space-y-2.5 text-xs">
           <!-- Initial greeting -->
           <div class="flex gap-2">
-            <div class="w-7 h-7 rounded-lg bg-gold-500/20 text-gold-400 font-bold flex items-center justify-center shrink-0 text-xs">AI</div>
-            <div class="bg-dark-850 border border-dark-700/80 rounded-2xl rounded-tl-none p-3 text-slate-200 leading-relaxed shadow-sm">
-              Assalomu alaykum ustoz! Men <b>Robo Trader Boy</b> — sizning XAUUSD bo'yicha shaxsiy AI hamkoringizman. Bozor tahlili, zonalarni hisoblash yoki strategiyalar bo'yicha xohlagan savolingizni berishingiz mumkin.
+            <div class="w-6 h-6 rounded-sm bg-[#2962ff] text-white font-bold flex items-center justify-center shrink-0 text-[10px]">AI</div>
+            <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-2.5 text-slate-200 leading-relaxed max-w-[85%]">
+              Assalomu alaykum ustoz! Men <b>Robo Trader Boy</b> — sizning XAUUSD bo'yicha shaxsiy AI hamkoringizman. Bozor tahlili, zonalarni hisoblash yoki strategiyalar bo'yicha xohlagan savolingizni bering.
             </div>
           </div>
         </div>
 
         <!-- Input Form -->
-        <div class="mt-3 flex gap-2">
+        <div class="mt-2.5 flex gap-1.5">
           <input type="text" id="chat-input" placeholder="Ustoz, savolingizni yozing..." 
             onkeydown="if(event.key==='Enter') sendAiMessage()"
-            class="flex-1 bg-dark-950 border border-dark-700 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-gold-500 transition">
-          <button id="chatSendBtn" onclick="sendAiMessage()" class="bg-gold-500 hover:bg-gold-600 text-dark-950 font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-md flex items-center justify-center">
+            class="flex-1 bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-xs text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff] transition">
+          <button id="chatSendBtn" onclick="sendAiMessage()" class="bg-[#2962ff] hover:bg-[#1e4bd8] text-white font-bold px-3.5 py-2 rounded-sm text-xs transition flex items-center justify-center">
             <span>Yuborish</span>
           </button>
         </div>
@@ -219,42 +222,42 @@
     <!-- ======================================================== -->
     <!-- TAB 3: STATISTIKA & SAVDO JURNALI -->
     <!-- ======================================================== -->
-    <div id="content-statistics" class="tab-content space-y-4 hidden">
+    <div id="content-statistics" class="tab-content space-y-3 hidden">
       <!-- Performance summary cards -->
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-white mb-2.5">
           📊 Umumiy Savdo Ko'rsatkichlari
         </h3>
         <div class="grid grid-cols-2 gap-2 text-center">
-          <div class="bg-dark-800 p-2.5 rounded-xl">
-            <span class="text-[10px] text-slate-400 uppercase">Jami Savdolar</span>
+          <div class="bg-black border border-[#1c202c] p-2.5 rounded-sm">
+            <span class="text-[9px] text-[#a1a1aa] uppercase">Jami Savdolar</span>
             <p id="perfTotal" class="text-base font-bold text-white mt-0.5">0</p>
           </div>
-          <div class="bg-dark-800 p-2.5 rounded-xl">
-            <span class="text-[10px] text-slate-400 uppercase">Win Rate</span>
-            <p id="perfWinRate" class="text-base font-bold text-emerald-400 mt-0.5">0%</p>
+          <div class="bg-black border border-[#1c202c] p-2.5 rounded-sm">
+            <span class="text-[9px] text-[#a1a1aa] uppercase">Win Rate</span>
+            <p id="perfWinRate" class="text-base font-bold text-[#f59e0b] mt-0.5">0%</p>
           </div>
-          <div class="bg-dark-800 p-2.5 rounded-xl">
-            <span class="text-[10px] text-slate-400 uppercase">G'alaba / Mag'lubiyat</span>
-            <p id="perfWinLoss" class="text-xs font-semibold text-slate-300 mt-0.5">0 / 0</p>
+          <div class="bg-black border border-[#1c202c] p-2.5 rounded-sm">
+            <span class="text-[9px] text-[#a1a1aa] uppercase">G'alaba / Mag'lubiyat</span>
+            <p id="perfWinLoss" class="text-xs font-semibold text-white mt-0.5">0 / 0</p>
           </div>
-          <div class="bg-dark-800 p-2.5 rounded-xl">
-            <span class="text-[10px] text-slate-400 uppercase">Jami Foyda ($)</span>
-            <p id="perfPnl" class="text-xs font-bold text-slate-300 mt-0.5">$0.00</p>
+          <div class="bg-black border border-[#1c202c] p-2.5 rounded-sm">
+            <span class="text-[9px] text-[#a1a1aa] uppercase">Jami Foyda ($)</span>
+            <p id="perfPnl" class="text-xs font-bold text-[#f59e0b] mt-0.5">$0.00</p>
           </div>
         </div>
       </div>
 
       <!-- Trade History Table -->
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
+        <div class="flex items-center justify-between mb-2.5">
+          <h3 class="text-[11px] font-bold uppercase tracking-wider text-white">
             📜 Savdo Tarixi
           </h3>
-          <span class="text-[10px] text-slate-500">Oxirgi bitimlar</span>
+          <span class="text-[10px] text-[#a1a1aa]">Oxirgi bitimlar</span>
         </div>
         <div id="historyList" class="space-y-2">
-          <p class="text-xs text-slate-500 text-center py-3">Savdo tarixi yuklanmoqda...</p>
+          <p class="text-xs text-[#a1a1aa] text-center py-2.5">Savdo tarixi yuklanmoqda...</p>
         </div>
       </div>
     </div>
@@ -263,52 +266,52 @@
     <!-- ======================================================== -->
     <!-- TAB 4: RISK & MASTER KILL-SWITCH -->
     <!-- ======================================================== -->
-    <div id="content-risk" class="tab-content space-y-4 hidden">
+    <div id="content-risk" class="tab-content space-y-3 hidden">
       <!-- Master Kill Switch -->
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm">
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">
+            <h2 class="text-[11px] font-bold uppercase tracking-wider text-white">
               🛑 Master Kill-Switch
             </h2>
-            <p class="text-[11px] text-slate-400 mt-0.5">Avtomatik savdoni darhol to'xtatish yoki yoqish</p>
+            <p class="text-[10px] text-[#a1a1aa] mt-0.5">Avtomatik savdoni to'xtatish yoki yoqish</p>
           </div>
-          <button id="killSwitchBtn" onclick="toggleKillSwitch()" class="px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white">
+          <button id="killSwitchBtn" onclick="toggleKillSwitch()" class="px-3 py-1.5 text-xs font-bold rounded-sm transition flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white">
             <span id="killSwitchLabel">TO'XTATISH</span>
           </button>
         </div>
 
         <!-- News Banner -->
-        <div id="newsFilterBanner" class="mt-3 p-2.5 rounded-xl text-[11px] bg-dark-800/80 border border-dark-700/80 flex items-center justify-between">
+        <div id="newsFilterBanner" class="mt-2.5 p-2 rounded-sm text-[11px] bg-black border border-[#1c202c] flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span id="newsIcon" class="text-base">📅</span>
-            <span id="newsMessage" class="text-slate-300 font-medium">Iqtisodiy yangiliklar tekshirilmoqda...</span>
+            <span id="newsIcon" class="text-sm">📅</span>
+            <span id="newsMessage" class="text-white font-medium">Iqtisodiy yangiliklar tekshirilmoqda...</span>
           </div>
-          <span id="newsStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">FAOL</span>
+          <span id="newsStatusBadge" class="px-2 py-0.5 rounded-sm text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">FAOL</span>
         </div>
       </div>
 
       <!-- Strict Risk Guardrail (1% - 5%) -->
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm">
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
         <div class="flex items-center justify-between">
           <div>
             <div class="flex items-center gap-1.5">
-              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">🛡 Strict Risk Guardrail</h2>
-              <span class="text-[9px] bg-blue-500/20 text-blue-400 font-bold px-1.5 py-0.5 rounded">1.0% — 5.0%</span>
+              <h2 class="text-[11px] font-bold uppercase tracking-wider text-white">🛡 Strict Risk Guardrail</h2>
+              <span class="text-[9px] bg-[#2962ff]/15 text-[#2962ff] font-bold px-1.5 py-0.5 rounded-sm border border-[#2962ff]/30">1.0% — 5.0%</span>
             </div>
-            <p class="text-[11px] text-slate-400 mt-0.5">Har bir bitim uchun ruxsat etilgan xavf</p>
+            <p class="text-[10px] text-[#a1a1aa] mt-0.5">Har bir bitim uchun xavf chegarasi</p>
           </div>
           <div class="text-right">
-            <span id="riskDisplay" class="text-xl font-extrabold text-gold-400">1.0%</span>
+            <span id="riskDisplay" class="text-lg font-extrabold text-[#f59e0b]">1.0%</span>
           </div>
         </div>
 
         <!-- Slider -->
-        <div class="mt-4">
+        <div class="mt-3">
           <input type="range" id="riskSlider" min="1.0" max="5.0" step="0.1" value="1.0"
             oninput="onRiskSliderChange(this.value)"
-            class="w-full h-2 bg-dark-700 rounded-lg appearance-none cursor-pointer accent-gold-500">
-          <div class="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+            class="w-full h-1.5 bg-[#1c202c] rounded-sm appearance-none cursor-pointer accent-[#2962ff]">
+          <div class="flex justify-between text-[10px] text-[#a1a1aa] mt-1 font-mono">
             <span>1.0% (Past)</span>
             <span>3.0% (Standart)</span>
             <span>5.0% (Maksimal)</span>
@@ -316,16 +319,16 @@
         </div>
 
         <!-- Presets -->
-        <div class="grid grid-cols-4 gap-2 mt-3">
-          <button onclick="setRiskPreset(1.0)" class="py-1.5 text-xs font-bold rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-300 border border-dark-700 transition">1.0%</button>
-          <button onclick="setRiskPreset(2.0)" class="py-1.5 text-xs font-bold rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-300 border border-dark-700 transition">2.0%</button>
-          <button onclick="setRiskPreset(3.0)" class="py-1.5 text-xs font-bold rounded-lg bg-dark-800 hover:bg-dark-700 text-slate-300 border border-dark-700 transition">3.0%</button>
-          <button onclick="setRiskPreset(5.0)" class="py-1.5 text-xs font-bold rounded-lg bg-dark-800 hover:bg-dark-700 text-gold-400 border border-gold-500/30 transition">5.0%</button>
+        <div class="grid grid-cols-4 gap-1.5 mt-2.5">
+          <button onclick="setRiskPreset(1.0)" class="py-1.5 text-xs font-bold rounded-sm bg-black hover:bg-[#1c202c] text-white border border-[#1c202c] transition">1.0%</button>
+          <button onclick="setRiskPreset(2.0)" class="py-1.5 text-xs font-bold rounded-sm bg-black hover:bg-[#1c202c] text-white border border-[#1c202c] transition">2.0%</button>
+          <button onclick="setRiskPreset(3.0)" class="py-1.5 text-xs font-bold rounded-sm bg-black hover:bg-[#1c202c] text-white border border-[#1c202c] transition">3.0%</button>
+          <button onclick="setRiskPreset(5.0)" class="py-1.5 text-xs font-bold rounded-sm bg-black hover:bg-[#1c202c] text-[#f59e0b] border border-[#f59e0b]/40 transition">5.0%</button>
         </div>
 
-        <div class="mt-3 flex items-center justify-between pt-2 border-t border-dark-800">
-          <span class="text-[10px] text-slate-500">⚠️ 5% dan ortiq xavf server tomonidan bloklanadi</span>
-          <button id="saveRiskBtn" onclick="saveRiskSetting()" class="px-3.5 py-1.5 bg-gold-500 hover:bg-gold-600 text-dark-950 font-bold text-xs rounded-xl transition shadow-md">
+        <div class="mt-2.5 flex items-center justify-between pt-2 border-t border-[#1c202c]">
+          <span class="text-[10px] text-[#a1a1aa]">⚠️ 5% dan ortiq xavf server tomonidan bloklanadi</span>
+          <button id="saveRiskBtn" onclick="saveRiskSetting()" class="px-3.5 py-1.5 bg-[#2962ff] hover:bg-[#1e4bd8] text-white font-bold text-xs rounded-sm transition">
             Saqlash
           </button>
         </div>
@@ -336,46 +339,46 @@
     <!-- ======================================================== -->
     <!-- TAB 5: KANALLARNI BOSHQARISH & BOT HAQIDA -->
     <!-- ======================================================== -->
-    <div id="content-channels" class="tab-content space-y-4 hidden">
+    <div id="content-channels" class="tab-content space-y-3 hidden">
       <!-- Add channel form -->
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">➕ Yangi Kanal Qo'shish</h3>
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-white mb-2">➕ Yangi Kanal Qo'shish</h3>
         <div class="space-y-2 text-xs">
-          <input type="text" id="newChanTitle" placeholder="Kanal nomi (masalan: TraderStage VIP)" class="w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-gold-500">
+          <input type="text" id="newChanTitle" placeholder="Kanal nomi (masalan: TraderStage VIP)" class="w-full bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
           <div class="grid grid-cols-2 gap-2">
-            <input type="text" id="newChanId" placeholder="ID yoki @username" class="bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-gold-500">
-            <input type="number" id="newChanWeight" step="0.1" value="1.5" placeholder="Og'irlik (1.5)" class="bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-gold-500">
+            <input type="text" id="newChanId" placeholder="ID yoki @username" class="bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
+            <input type="number" id="newChanWeight" step="0.1" value="1.5" placeholder="Og'irlik (1.5)" class="bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
           </div>
-          <button onclick="addChannel()" class="w-full py-2 bg-gold-500 hover:bg-gold-600 text-dark-950 font-bold rounded-xl transition">
+          <button onclick="addChannel()" class="w-full py-2 bg-[#2962ff] hover:bg-[#1e4bd8] text-white font-bold rounded-sm transition">
             Kanalni Saqlash
           </button>
         </div>
       </div>
 
       <!-- Monitored channels list -->
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
+        <div class="flex items-center justify-between mb-2.5">
+          <h3 class="text-[11px] font-bold uppercase tracking-wider text-white">
             📡 Kuzatuvdagi Kanallar
           </h3>
-          <span id="channelCountBadge" class="text-[10px] bg-dark-800 text-slate-400 font-bold px-2 py-0.5 rounded-full">0 ta</span>
+          <span id="channelCountBadge" class="text-[10px] bg-[#1c202c] text-[#a1a1aa] font-bold px-1.5 py-0.5 rounded-sm">0 ta</span>
         </div>
         <div id="channels-list" class="space-y-2">
-          <p class="text-xs text-slate-500 text-center py-3">Kanallar yuklanmoqda...</p>
+          <p class="text-xs text-[#a1a1aa] text-center py-2.5">Kanallar yuklanmoqda...</p>
         </div>
       </div>
 
       <!-- About RTB v2.0 -->
-      <div class="bg-dark-900 border border-dark-700/60 rounded-2xl p-4 shadow-sm text-xs space-y-2">
-        <h3 class="font-bold text-white uppercase tracking-wider text-gold-400">ℹ️ RTB v2.0 Arxitekturasi</h3>
-        <p class="text-slate-300 leading-relaxed">
-          <b>Robo Trader Boy (RTB) v2.0</b> — Oltin (XAUUSD) bozoriga ixtisoslashgan aqlli AI savdo agenti.
+      <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3 text-xs space-y-1.5">
+        <h3 class="font-bold text-white uppercase tracking-wider text-[#f59e0b]">ℹ️ RTB v2.0 Tizimi</h3>
+        <p class="text-[#a1a1aa] leading-relaxed">
+          <b>Robo Trader Boy (RTB) v2.0</b> — Oltin (XAUUSD) bozoriga ixtisoslashgan yuqori tezlikdagi AI savdo agenti.
         </p>
-        <ul class="text-[11px] text-slate-400 space-y-1 list-disc list-inside">
-          <li><b>AI Parser:</b> Google Gemini Pro (Strict JSON extraction)</li>
-          <li><b>MT5 Bridge:</b> Exness Demo & Real Multi-filling rejim</li>
-          <li><b>Risk Guardrail:</b> 1.0% – 5.0% qat'iy tekshiruv</li>
-          <li><b>Monitoring:</b> +1R Break-Even va 1:3 RR strategiyasi</li>
+        <ul class="text-[11px] text-[#a1a1aa] space-y-1 list-disc list-inside">
+          <li><b>AI Parser:</b> Google Gemini Pro (Smart JSON ajratish)</li>
+          <li><b>MT5 Bridge:</b> Exness Demo & Real Multi-filling ijrosi</li>
+          <li><b>Risk Guardrail:</b> 1.0% – 5.0% qat'iy cheklov</li>
+          <li><b>Monitoring:</b> +1R Break-Even & 1:3 RR rejasi</li>
           <li><b>Yangiliklar filtri:</b> CPI, NFP, FOMC oldi-orti 15 min avto-pauza</li>
         </ul>
       </div>
@@ -384,12 +387,12 @@
   </main>
 
   <!-- TOAST NOTIFICATION -->
-  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-dark-800 text-white text-xs font-semibold shadow-2xl border border-dark-600 transition-all duration-300 opacity-0 pointer-events-none flex items-center gap-2">
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-3.5 py-2 rounded-sm bg-[#0c0d12] text-white text-xs font-semibold shadow-2xl border border-[#2962ff] transition-all duration-200 opacity-0 pointer-events-none flex items-center gap-2">
     <span id="toastIcon">ℹ️</span>
     <span id="toastMsg">Xabar</span>
   </div>
 
-  <!-- MAIN JAVASCRIPT LOGIC -->
+  <!-- JAVASCRIPT LOGIC -->
   <script>
     // Initialize Telegram WebApp
     const tg = window.Telegram ? window.Telegram.WebApp : null;
@@ -402,12 +405,13 @@
           document.getElementById('userGreeting').textContent = `${u.first_name || ''} ${u.username ? '(@' + u.username + ')' : ''}`;
         }
       } catch (e) {
-        console.warn("Could not read Telegram user info:", e);
+        console.warn("Telegram user reading:", e);
       }
     }
 
     let currentRiskPercent = 1.0;
     let isTradingEnabled = true;
+    let localChannelsCache = [];
 
     // Toast helper
     function showToast(msg, icon = '✅') {
@@ -419,14 +423,14 @@
       setTimeout(() => {
         toast.classList.remove('opacity-100');
         toast.classList.add('opacity-0', 'pointer-events-none');
-      }, 3000);
+      }, 2500);
     }
 
     // Switch Tabs
     function switchTab(tabName) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.tab-btn').forEach(el => {
-        el.className = "tab-btn whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition";
+        el.className = "tab-btn whitespace-nowrap px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider text-[#a1a1aa] bg-[#0c0d12] hover:text-white border border-[#1c202c] transition";
       });
 
       const contentEl = document.getElementById('content-' + tabName);
@@ -434,10 +438,11 @@
 
       const activeBtn = document.getElementById('tab-' + tabName);
       if (activeBtn) {
-        activeBtn.className = "tab-btn whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gold-500 text-dark-950 transition shadow-sm";
+        activeBtn.className = "tab-btn whitespace-nowrap px-3 py-1.5 rounded-sm text-[11px] font-bold uppercase tracking-wider bg-[#2962ff] text-white border border-[#2962ff] transition";
       }
 
       if (tabName === 'channels') {
+        renderChannelsList(localChannelsCache);
         loadChannels();
       }
     }
@@ -515,16 +520,16 @@
       const statusText = document.getElementById('statusText');
 
       if (enabled) {
-        btn.className = "px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white";
+        btn.className = "px-3 py-1.5 text-xs font-bold rounded-sm transition flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white";
         label.textContent = "TO'XTATISH";
-        statusBadge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
-        statusBadge.querySelector('span').className = "w-2 h-2 rounded-full bg-emerald-400 pulse-dot";
+        statusBadge.className = "flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
+        statusBadge.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot";
         statusText.textContent = "ONLINE";
       } else {
-        btn.className = "px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white";
+        btn.className = "px-3 py-1.5 text-xs font-bold rounded-sm transition flex items-center gap-1.5 bg-[#2962ff] hover:bg-[#1e4bd8] text-white";
         label.textContent = "YOQISH";
-        statusBadge.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30";
-        statusBadge.querySelector('span').className = "w-2 h-2 rounded-full bg-rose-400";
+        statusBadge.className = "flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[11px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30";
+        statusBadge.querySelector('span').className = "w-1.5 h-1.5 rounded-full bg-rose-400";
         statusText.textContent = "PAUZADA";
       }
     }
@@ -565,10 +570,9 @@
       const container = document.getElementById('chat-messages');
       const sendBtn = document.getElementById('chatSendBtn');
 
-      // Append user message
       container.innerHTML += `
         <div class="flex gap-2 justify-end">
-          <div class="bg-gold-500 text-dark-950 font-medium rounded-2xl rounded-tr-none p-2.5 max-w-[80%] text-xs shadow-sm">
+          <div class="bg-[#2962ff] text-white font-medium rounded-sm p-2 max-w-[80%] text-xs">
             ${text}
           </div>
         </div>
@@ -576,12 +580,11 @@
       input.value = '';
       container.scrollTop = container.scrollHeight;
 
-      // Loading bubble
       const loadingId = 'loading-' + Date.now();
       container.innerHTML += `
         <div id="${loadingId}" class="flex gap-2">
-          <div class="w-7 h-7 rounded-lg bg-gold-500/20 text-gold-400 font-bold flex items-center justify-center shrink-0 text-xs">AI</div>
-          <div class="bg-dark-850 border border-dark-700/80 rounded-2xl rounded-tl-none p-3 text-slate-400 italic text-xs">
+          <div class="w-6 h-6 rounded-sm bg-[#2962ff] text-white font-bold flex items-center justify-center shrink-0 text-[10px]">AI</div>
+          <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-2 text-[#a1a1aa] italic text-xs">
             Tahlil qilinmoqda...
           </div>
         </div>
@@ -599,13 +602,12 @@
         document.getElementById(loadingId)?.remove();
 
         const replyText = data.reply || 'Javob olishda xatolik yuz berdi.';
-        // Format markdown linebreaks
         const formatted = replyText.replace(/\n/g, '<br>');
 
         container.innerHTML += `
           <div class="flex gap-2">
-            <div class="w-7 h-7 rounded-lg bg-gold-500/20 text-gold-400 font-bold flex items-center justify-center shrink-0 text-xs">AI</div>
-            <div class="bg-dark-850 border border-dark-700/80 rounded-2xl rounded-tl-none p-3 text-slate-200 leading-relaxed text-xs shadow-sm max-w-[85%]">
+            <div class="w-6 h-6 rounded-sm bg-[#2962ff] text-white font-bold flex items-center justify-center shrink-0 text-[10px]">AI</div>
+            <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-2.5 text-slate-200 leading-relaxed text-xs max-w-[85%]">
               ${formatted}
             </div>
           </div>
@@ -614,8 +616,8 @@
         document.getElementById(loadingId)?.remove();
         container.innerHTML += `
           <div class="flex gap-2">
-            <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 font-bold flex items-center justify-center shrink-0 text-xs">!</div>
-            <div class="bg-dark-850 border border-rose-500/30 rounded-2xl p-3 text-rose-300 text-xs">
+            <div class="w-6 h-6 rounded-sm bg-rose-600 text-white font-bold flex items-center justify-center shrink-0 text-[10px]">!</div>
+            <div class="bg-[#0c0d12] border border-rose-500/40 rounded-sm p-2 text-rose-300 text-xs">
               Server bilan aloqa uzildi. Qaytadan urinib ko'ring.
             </div>
           </div>
@@ -626,33 +628,49 @@
       }
     }
 
-    // Channels Management
-    async function loadChannels() {
+    // Channels Renderer (uses cached data & direct fetch)
+    function renderChannelsList(channels) {
       const container = document.getElementById('channels-list');
       const badge = document.getElementById('channelCountBadge');
+      if (!container) return;
+
+      const list = Array.isArray(channels) ? channels : [];
+      badge.textContent = `${list.length} ta`;
+
+      if (list.length === 0) {
+        container.innerHTML = '<p class="text-xs text-[#a1a1aa] text-center py-3">Kuzatuvdagi kanallar mavjud emas</p>';
+        return;
+      }
+
+      container.innerHTML = list.map(c => `
+        <div class="bg-black border border-[#1c202c] rounded-sm p-2.5 flex items-center justify-between">
+          <div>
+            <div class="font-bold text-white text-xs">${c.title || 'Nomsiz Kanal'}</div>
+            <div class="text-[10px] text-[#a1a1aa] mt-0.5">ID: <code>${c.channel_id}</code> • Og'irlik: <span class="text-[#f59e0b]">${c.weight || 1.5}</span></div>
+          </div>
+          <button onclick="removeChannel('${c.channel_id}')" class="px-2.5 py-1 text-[10px] font-bold rounded-sm bg-[#1c202c] hover:bg-rose-600 text-rose-300 hover:text-white transition">
+            O'chirish
+          </button>
+        </div>
+      `).join('');
+    }
+
+    async function loadChannels() {
       try {
         const res = await fetch('/api/channels');
+        if (!res.ok) throw new Error('Status: ' + res.status);
         const data = await res.json();
-        if (data.success && data.channels) {
-          badge.textContent = `${data.channels.length} ta`;
-          if (data.channels.length === 0) {
-            container.innerHTML = '<p class="text-xs text-slate-500 text-center py-3">Hozircha kanallar mavjud emas</p>';
-            return;
-          }
-          container.innerHTML = data.channels.map(c => `
-            <div class="bg-dark-800/80 border border-dark-700/80 rounded-xl p-3 flex items-center justify-between">
-              <div>
-                <div class="font-bold text-white text-xs">${c.title}</div>
-                <div class="text-[10px] text-slate-400 mt-0.5">ID: <code>${c.channel_id}</code> • Og'irlik: ${c.weight}</div>
-              </div>
-              <button onclick="removeChannel('${c.channel_id}')" class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-dark-700 hover:bg-rose-600 text-rose-300 hover:text-white transition">
-                O'chirish
-              </button>
-            </div>
-          `).join('');
+        if (data && data.channels) {
+          localChannelsCache = data.channels;
+          renderChannelsList(localChannelsCache);
         }
       } catch (e) {
-        container.innerHTML = '<p class="text-xs text-rose-400 text-center py-3">Kanallarni yuklab bo\'lmadi</p>';
+        console.warn('Channels load fallback to cache:', e);
+        if (localChannelsCache && localChannelsCache.length > 0) {
+          renderChannelsList(localChannelsCache);
+        } else {
+          document.getElementById('channels-list').innerHTML = '<p class="text-xs text-[#a1a1aa] text-center py-2.5">Kanal ma\'lumotlari yangilanmoqda...</p>';
+        }
       }
     }
 
@@ -677,7 +695,12 @@
           showToast(data.message || 'Kanal qo\'shildi', '✅');
           document.getElementById('newChanTitle').value = '';
           document.getElementById('newChanId').value = '';
-          loadChannels();
+          if (data.channels) {
+            localChannelsCache = data.channels;
+            renderChannelsList(localChannelsCache);
+          } else {
+            loadChannels();
+          }
         } else {
           showToast(data.error || 'Xatolik', '❌');
         }
@@ -693,7 +716,12 @@
         const data = await res.json();
         if (data.success) {
           showToast('Kanal o\'chirildi', '🗑');
-          loadChannels();
+          if (data.channels) {
+            localChannelsCache = data.channels;
+            renderChannelsList(localChannelsCache);
+          } else {
+            loadChannels();
+          }
         }
       } catch (e) {
         showToast('Server bilan aloqa uzildi', '❌');
@@ -738,12 +766,12 @@
 
         if (data.news_filter) {
           if (data.news_filter.trading_allowed) {
-            newsBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400";
+            newsBadge.className = "px-2 py-0.5 rounded-sm text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
             newsBadge.textContent = "FAOL";
             newsIcon.textContent = "✅";
             newsMsg.textContent = data.news_filter.reason || "Yuqori xavfli yangiliklar yo'q";
           } else {
-            newsBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400";
+            newsBadge.className = "px-2 py-0.5 rounded-sm text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30";
             newsBadge.textContent = "PAUZA";
             newsIcon.textContent = "⚠️";
             newsMsg.textContent = data.news_filter.reason || "Yangilik tufayli savdo to'xtatildi";
@@ -770,8 +798,17 @@
           pnlEl.className = `text-xs font-bold mt-0.5 ${pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
         }
 
+        // 9. Synchronize Channels Cache from Status
+        if (data.channels && Array.isArray(data.channels)) {
+          localChannelsCache = data.channels;
+          const channelsContainer = document.getElementById('channels-list');
+          if (channelsContainer && !document.getElementById('content-channels').classList.contains('hidden')) {
+            renderChannelsList(localChannelsCache);
+          }
+        }
+
       } catch (err) {
-        console.warn('Status poll failed:', err);
+        console.warn('Status poll:', err);
       }
     }
 
@@ -781,7 +818,7 @@
       badge.textContent = `${positions.length} ta`;
 
       if (positions.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Hozirda ochiq pozitsiya mavjud emas</p>';
+        container.innerHTML = '<p class="text-xs text-[#a1a1aa] text-center py-3">Hozirda ochiq pozitsiya mavjud emas</p>';
         return;
       }
 
@@ -790,17 +827,17 @@
         const profit = parseFloat(p.profit || 0);
         const profitColor = profit >= 0 ? 'text-emerald-400' : 'text-rose-400';
         return `
-          <div class="bg-dark-800/80 border border-dark-700/80 rounded-xl p-3 flex items-center justify-between">
+          <div class="bg-black border border-[#1c202c] rounded-sm p-2.5 flex items-center justify-between">
             <div class="space-y-1">
               <div class="flex items-center gap-2">
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold ${isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                <span class="px-1.5 py-0.5 rounded-sm text-[9px] font-extrabold ${isBuy ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}">
                   ${p.direction}
                 </span>
                 <span class="text-xs font-bold text-white">#${p.ticket}</span>
-                <span class="text-[11px] text-slate-400">${p.lot || 0.01} lot</span>
+                <span class="text-[11px] text-[#a1a1aa]">${p.lot || 0.01} lot</span>
               </div>
-              <div class="text-[10px] text-slate-400 space-x-2">
-                <span>Kirish: <b class="text-slate-200">${p.price_open || p.open_price}</b></span>
+              <div class="text-[10px] text-[#a1a1aa] space-x-2">
+                <span>Kirish: <b class="text-white">${p.price_open || p.open_price}</b></span>
                 <span>SL: <b class="text-rose-400">${p.sl || '-'}</b></span>
                 <span>TP: <b class="text-emerald-400">${p.tp || '-'}</b></span>
               </div>
@@ -809,7 +846,7 @@
               <div class="text-xs font-bold ${profitColor}">
                 ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}
               </div>
-              <button onclick="closePosition(${p.ticket})" class="px-2.5 py-1 text-[10px] font-bold rounded bg-dark-700 hover:bg-rose-600/80 text-rose-300 hover:text-white transition">
+              <button onclick="closePosition(${p.ticket})" class="px-2 py-0.5 text-[10px] font-bold rounded-sm bg-[#1c202c] hover:bg-rose-600 text-rose-300 hover:text-white transition">
                 Yopish
               </button>
             </div>
@@ -821,7 +858,7 @@
     function renderSignals(signals) {
       const container = document.getElementById('signalsList');
       if (signals.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-500 text-center py-3">Signallar mavjud emas</p>';
+        container.innerHTML = '<p class="text-xs text-[#a1a1aa] text-center py-2.5">Signallar mavjud emas</p>';
         return;
       }
 
@@ -829,18 +866,18 @@
         const isBuy = (s.direction || '').toUpperCase() === 'BUY';
         const tps = Array.isArray(s.tp_targets) ? s.tp_targets.join(', ') : (s.tp_targets || '-');
         return `
-          <div class="bg-dark-800/60 border border-dark-700/60 rounded-xl p-2.5 text-xs">
+          <div class="bg-black border border-[#1c202c] rounded-sm p-2 text-xs">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-1.5">
-                <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold ${isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                <span class="px-1.5 py-0.5 rounded-sm text-[9px] font-extrabold ${isBuy ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}">
                   ${s.direction}
                 </span>
-                <span class="font-semibold text-slate-200 truncate max-w-[150px]">${s.source_name || 'Kanal'}</span>
+                <span class="font-semibold text-white truncate max-w-[150px]">${s.source_name || 'Kanal'}</span>
               </div>
-              <span class="text-[10px] text-slate-500 font-mono">${(s.created_at || '').split('T')[1] || s.created_at || ''}</span>
+              <span class="text-[10px] text-[#a1a1aa] font-mono">${(s.created_at || '').split('T')[1] || s.created_at || ''}</span>
             </div>
-            <div class="mt-1.5 grid grid-cols-3 gap-1 text-[10px] text-slate-400 bg-dark-950/50 p-1.5 rounded-lg">
-              <div>Zona: <b class="text-slate-200">${s.zone_min}-${s.zone_max}</b></div>
+            <div class="mt-1 grid grid-cols-3 gap-1 text-[10px] text-[#a1a1aa] bg-[#0c0d12] p-1.5 rounded-sm border border-[#1c202c]">
+              <div>Zona: <b class="text-white">${s.zone_min}-${s.zone_max}</b></div>
               <div>SL: <b class="text-rose-400">${s.sl}</b></div>
               <div class="truncate">TP: <b class="text-emerald-400">${tps}</b></div>
             </div>
@@ -852,7 +889,7 @@
     function renderHistory(trades) {
       const container = document.getElementById('historyList');
       if (trades.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-500 text-center py-3">Savdo tarixi bo\'sh</p>';
+        container.innerHTML = '<p class="text-xs text-[#a1a1aa] text-center py-2.5">Savdo tarixi bo\'sh</p>';
         return;
       }
 
@@ -861,22 +898,22 @@
         const pnl = parseFloat(t.pnl_usd || 0.0);
         const pnlColor = pnl >= 0 ? 'text-emerald-400' : 'text-rose-400';
         return `
-          <div class="bg-dark-800/60 border border-dark-700/60 rounded-xl p-2.5 text-xs flex items-center justify-between">
+          <div class="bg-black border border-[#1c202c] rounded-sm p-2 text-xs flex items-center justify-between">
             <div>
               <div class="flex items-center gap-1.5">
-                <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold ${isBuy ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                <span class="px-1.5 py-0.5 rounded-sm text-[9px] font-extrabold ${isBuy ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}">
                   ${t.direction}
                 </span>
-                <span class="font-bold text-slate-300">#${t.ticket}</span>
-                <span class="text-[10px] text-slate-500">(${t.status})</span>
+                <span class="font-bold text-white">#${t.ticket}</span>
+                <span class="text-[10px] text-[#a1a1aa]">(${t.status})</span>
               </div>
-              <div class="text-[10px] text-slate-400 mt-1">
-                Kirish: <b>${t.entry_price}</b> | Lot: <b>${t.lot_size}</b> | Risk: <b>${t.risk_percent}%</b>
+              <div class="text-[10px] text-[#a1a1aa] mt-1">
+                Kirish: <b class="text-white">${t.entry_price}</b> | Lot: <b class="text-white">${t.lot_size}</b> | Risk: <b class="text-[#f59e0b]">${t.risk_percent}%</b>
               </div>
             </div>
             <div class="text-right">
               <span class="text-xs font-bold ${pnlColor}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</span>
-              <div class="text-[9px] text-slate-500">${t.close_reason || t.status}</div>
+              <div class="text-[9px] text-[#a1a1aa]">${t.close_reason || t.status}</div>
             </div>
           </div>
         `;
