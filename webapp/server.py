@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -31,6 +31,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def verify_admin_access(request: Request, call_next):
+    """
+    Security gatekeeper: strictly restricts all API endpoints to the authorized Administrator.
+    """
+    if request.url.path.startswith("/api/"):
+        admin_key = request.headers.get("X-Admin-Key") or request.query_params.get("admin_key")
+        client_host = request.client.host if request.client else ""
+        is_local = client_host in ("127.0.0.1", "::1", "localhost")
+        expected_key = str(config.ADMIN_TELEGRAM_ID)
+
+        if not is_local and (not admin_key or admin_key != expected_key):
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "success": False,
+                    "error": "⛔ Kirish taqiqlangan! Ushbu tizim faqat administrator uchun mo'ljallangan. @coder_zik ga murojaat qiling."
+                }
+            )
+
+    response = await call_next(request)
+    return response
+
 
 TEMPLATES_DIR = BASE_DIR / "webapp" / "templates"
 

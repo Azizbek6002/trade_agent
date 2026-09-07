@@ -1,7 +1,7 @@
 import logging
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, MenuButtonWebApp
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, MenuButtonWebApp, MenuButtonDefault
 from config import config
 from database import db
 from ai_parser.groq_parser import groq_parser
@@ -14,10 +14,11 @@ dp = Dispatcher()
 
 
 def get_app_keyboard() -> InlineKeyboardMarkup:
-    """Returns clean single Web App button."""
+    """Returns clean single Web App button for authorized admin."""
     if config.WEBAPP_URL.startswith("https://"):
+        admin_url = f"{config.WEBAPP_URL}?admin_key={config.ADMIN_TELEGRAM_ID}"
         return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🚀 RTB MINI APP'NI OCHISH", web_app=WebAppInfo(url=config.WEBAPP_URL))]
+            [InlineKeyboardButton(text="🚀 RTB MINI APP'NI OCHISH", web_app=WebAppInfo(url=admin_url))]
         ])
     else:
         return InlineKeyboardMarkup(inline_keyboard=[
@@ -33,7 +34,7 @@ def is_admin(user_id: int | None) -> bool:
 
 
 DENIED_MESSAGE = (
-    "❌ **Kechirasiz, siz bundan foydalana olmaysiz!**\n\n"
+    "❌ <b>Kechirasiz, siz bundan foydalana olmaysiz!</b>\n\n"
     "O'zingizga boshqa agent qilish uchun @coder_zik ga murojaat qiling."
 )
 
@@ -45,10 +46,11 @@ async def local_app_info_handler(callback: types.CallbackQuery):
         return
 
     await callback.answer()
+    admin_url = f"{config.WEBAPP_URL}?admin_key={config.ADMIN_TELEGRAM_ID}"
     await callback.message.answer(
-        f"📱 **RTB Mini App havolasi:**\n`{config.WEBAPP_URL}`\n\n"
+        f"📱 <b>RTB Mini App havolasi:</b>\n<code>{admin_url}</code>\n\n"
         f"Ushbu havolani brauzeringizda ochib to'liq boshqarishingiz mumkin.",
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 
@@ -57,16 +59,35 @@ async def local_app_info_handler(callback: types.CallbackQuery):
 async def start_cmd(message: types.Message):
     user_id = message.from_user.id if message.from_user else None
     if not is_admin(user_id):
-        await message.answer(DENIED_MESSAGE, parse_mode="Markdown")
+        try:
+            # Explicitly clear Menu Button for strangers so they cannot access Mini App
+            await message.bot.set_chat_menu_button(
+                chat_id=message.chat.id,
+                menu_button=MenuButtonDefault()
+            )
+        except Exception:
+            pass
+        await message.answer(DENIED_MESSAGE, parse_mode="HTML")
         return
 
+    # For admin: ensure web app menu button is set for admin's chat
+    if config.WEBAPP_URL.startswith("https://"):
+        try:
+            admin_url = f"{config.WEBAPP_URL}?admin_key={config.ADMIN_TELEGRAM_ID}"
+            await message.bot.set_chat_menu_button(
+                chat_id=message.chat.id,
+                menu_button=MenuButtonWebApp(text="RTB App", web_app=WebAppInfo(url=admin_url))
+            )
+        except Exception:
+            pass
+
     welcome_text = (
-        "🤖 **ROBO TRADER BOY (RTB) v2.0 — XAUUSD AI SYSTEM**\n\n"
+        "🤖 <b>ROBO TRADER BOY (RTB) v2.0 — XAUUSD AI SYSTEM</b>\n\n"
         "Assalomu alaykum ustoz! Barcha boshqaruv paneli, real vaqt bozori, "
-        "statistika, risk sozlamalari va AI chat endi yagona **RTB Mini App** ichida mujassam.\n\n"
+        "statistika, risk sozlamalari va AI chat endi yagona <b>RTB Mini App</b> ichida mujassam.\n\n"
         "👇 Pastdagi tugmani bosing va tizimni to'liq boshqaring:"
     )
-    await message.answer(welcome_text, reply_markup=get_app_keyboard(), parse_mode="Markdown")
+    await message.answer(welcome_text, reply_markup=get_app_keyboard(), parse_mode="HTML")
 
 
 @dp.message(F.text)
@@ -78,7 +99,14 @@ async def handle_direct_messages(message: types.Message):
     """
     user_id = message.from_user.id if message.from_user else None
     if not is_admin(user_id):
-        await message.answer(DENIED_MESSAGE, parse_mode="Markdown")
+        try:
+            await message.bot.set_chat_menu_button(
+                chat_id=message.chat.id,
+                menu_button=MenuButtonDefault()
+            )
+        except Exception:
+            pass
+        await message.answer(DENIED_MESSAGE, parse_mode="HTML")
         return
 
     text = (message.text or "").strip()
@@ -118,29 +146,29 @@ async def handle_direct_messages(message: types.Message):
             price = exec_res.get("price")
             risk = exec_res.get("risk_percent")
             reply = (
-                f"✅ **SIGNAL MT5 GA YUBORILDI & OCHILDI!**\n\n"
-                f"• Ticket: `#{ticket}`\n"
-                f"• Aktiv: `XAUUSD` ({parsed['direction']})\n"
-                f"• Lot: `{lot}` lot @ `{price}`\n"
-                f"• Risk: `{risk}%` (${exec_res.get('risk_usd')})\n"
-                f"• SL: `{parsed.get('sl')}` | TP: `{setup['tp']}`\n\n"
+                f"✅ <b>SIGNAL MT5 GA YUBORILDI & OCHILDI!</b>\n\n"
+                f"• Ticket: <code>#{ticket}</code>\n"
+                f"• Aktiv: <code>XAUUSD</code> ({parsed['direction']})\n"
+                f"• Lot: <code>{lot}</code> lot @ <code>{price}</code>\n"
+                f"• Risk: <code>{risk}%</code> (${exec_res.get('risk_usd')})\n"
+                f"• SL: <code>{parsed.get('sl')}</code> | TP: <code>{setup['tp']}</code>\n\n"
                 f"📱 Holatni kuzatish uchun Mini App'ni oching:"
             )
         else:
             reply = (
-                f"⚠️ **SIGNAL QABUL QILINDI (ID: {sig_id}), LEKIN ORDER OCHILMADI**\n\n"
+                f"⚠️ <b>SIGNAL QABUL QILINDI (ID: {sig_id}), LEKIN ORDER OCHILMADI</b>\n\n"
                 f"Sabab: {exec_res.get('reason')}\n\n"
                 f"📱 Mini App orqali sozlamalarni tekshiring:"
             )
-        await message.answer(reply, reply_markup=get_app_keyboard(), parse_mode="Markdown")
+        await message.answer(reply, reply_markup=get_app_keyboard(), parse_mode="HTML")
         return
 
     # General chat redirection to Mini App
     general_reply = (
         "💬 Ustoz, savdo signallari, AI maslahatchi bilan jonli muloqot va barcha tahlillar "
-        "uchun **RTB Mini App**'ning **AI Chat** bo'limidan foydalanishingiz mumkin."
+        "uchun <b>RTB Mini App</b>'ning <b>AI Chat</b> bo'limidan foydalanishingiz mumkin."
     )
-    await message.answer(general_reply, reply_markup=get_app_keyboard(), parse_mode="Markdown")
+    await message.answer(general_reply, reply_markup=get_app_keyboard(), parse_mode="HTML")
 
 
 async def start_bot():
@@ -149,14 +177,23 @@ async def start_bot():
         bot = Bot(token=config.TELEGRAM_BOT_TOKEN)
         await bot.delete_webhook(drop_pending_updates=True)
 
-        # Configure Menu Button to point directly to Mini App
-        if config.WEBAPP_URL.startswith("https://"):
+        # 1. Reset GLOBAL default menu button so strangers/non-admins never see the Web App button
+        try:
+            await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+            logger.info("Global Telegram Menu Button reset to Default (restricted for strangers).")
+        except Exception as e:
+            logger.warning(f"Could not reset global menu button: {e}")
+
+        # 2. Configure Menu Button EXCLUSIVELY for the admin
+        if config.ADMIN_TELEGRAM_ID and config.WEBAPP_URL.startswith("https://"):
             try:
+                admin_url = f"{config.WEBAPP_URL}?admin_key={config.ADMIN_TELEGRAM_ID}"
                 await bot.set_chat_menu_button(
-                    menu_button=MenuButtonWebApp(text="RTB App", web_app=WebAppInfo(url=config.WEBAPP_URL))
+                    chat_id=config.ADMIN_TELEGRAM_ID,
+                    menu_button=MenuButtonWebApp(text="RTB App", web_app=WebAppInfo(url=admin_url))
                 )
-                logger.info(f"Menu Button set to Mini App URL: {config.WEBAPP_URL}")
+                logger.info(f"Menu Button set exclusively for Admin {config.ADMIN_TELEGRAM_ID}")
             except Exception as e:
-                logger.warning(f"Could not set Telegram Menu Button: {e}")
+                logger.warning(f"Could not set Telegram Menu Button for admin: {e}")
 
         await dp.start_polling(bot)

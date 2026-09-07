@@ -394,19 +394,71 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
+    // =============================================================
+    // STRICT ADMIN AUTHENTICATION GUARD
+    // =============================================================
+    const EXPECTED_ADMIN_ID = "7266764356";
+    const urlParams = new URLSearchParams(window.location.search);
+    let adminKey = urlParams.get('admin_key') || localStorage.getItem('rtb_admin_key');
+
     // Initialize Telegram WebApp
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) {
-      tg.ready();
-      tg.expand();
+      try {
+        tg.ready();
+        tg.expand();
+      } catch (e) {}
+
       try {
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
           const u = tg.initDataUnsafe.user;
-          document.getElementById('userGreeting').textContent = `${u.first_name || ''} ${u.username ? '(@' + u.username + ')' : ''}`;
+          if (String(u.id) === EXPECTED_ADMIN_ID) {
+            adminKey = EXPECTED_ADMIN_ID;
+            localStorage.setItem('rtb_admin_key', adminKey);
+            const userGreetingEl = document.getElementById('userGreeting');
+            if (userGreetingEl) {
+              userGreetingEl.textContent = `${u.first_name || 'Ustoz'} ${u.username ? '(@' + u.username + ')' : ''}`;
+            }
+          } else {
+            // Stranger inside Telegram: Immediately block
+            adminKey = null;
+            localStorage.removeItem('rtb_admin_key');
+          }
         }
       } catch (e) {
         console.warn("Telegram user reading:", e);
       }
+    } else if (adminKey === EXPECTED_ADMIN_ID) {
+      localStorage.setItem('rtb_admin_key', adminKey);
+    }
+
+    // If unauthorized, lock out completely with pitch-black Access Denied screen!
+    if (!adminKey || adminKey !== EXPECTED_ADMIN_ID) {
+      document.body.innerHTML = `
+        <div class="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-6 text-center select-none">
+          <div class="w-16 h-16 rounded-sm bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-3xl mb-4 shadow-lg shadow-rose-950/40">
+            ⛔
+          </div>
+          <h1 class="text-base font-extrabold text-white mb-2 uppercase tracking-wider">Kirish taqiqlangan!</h1>
+          <p class="text-xs text-[#a1a1aa] mb-5 max-w-xs leading-relaxed">
+            Kechirasiz, siz ushbu tizimdan foydalana olmaysiz. Tizim faqat vakolatli administrator uchun yopiq rejimda ishlaydi.
+          </p>
+          <div class="bg-[#0c0d12] border border-[#1c202c] p-3.5 rounded-sm text-xs text-[#a1a1aa] mb-5 max-w-xs">
+            O'zingizga boshqa agent qilish uchun <b class="text-[#2962ff]">@coder_zik</b> ga murojaat qiling.
+          </div>
+          <a href="https://t.me/coder_zik" target="_blank" class="px-5 py-2.5 bg-[#2962ff] hover:bg-[#1e4bd8] text-white rounded-sm text-xs font-bold uppercase tracking-wider transition">
+            Bog'lanish (@coder_zik)
+          </a>
+        </div>
+      `;
+      throw new Error("⛔ Access Denied: RTB system is strictly restricted to administrator.");
+    }
+
+    // Authenticated API request wrapper with X-Admin-Key header
+    async function apiFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      options.headers['X-Admin-Key'] = adminKey;
+      return fetch(url, options);
     }
 
     let currentRiskPercent = 1.0;
@@ -467,7 +519,7 @@
       btn.textContent = '...';
 
       try {
-        const res = await fetch('/api/settings/risk', {
+        const res = await apiFetch('/api/settings/risk', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ risk_percent: currentRiskPercent })
@@ -495,7 +547,7 @@
       btn.disabled = true;
 
       try {
-        const res = await fetch('/api/settings/killswitch', {
+        const res = await apiFetch('/api/settings/killswitch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled: !isTradingEnabled })
@@ -539,7 +591,7 @@
       if (!confirm(`#${ticket} raqamli pozitsiyani yopishni tasdiqlaysizmi?`)) return;
 
       try {
-        const res = await fetch('/api/trades/close', {
+        const res = await apiFetch('/api/trades/close', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ticket: parseInt(ticket) })
@@ -593,7 +645,7 @@
 
       sendBtn.disabled = true;
       try {
-        const res = await fetch('/api/ai/chat', {
+        const res = await apiFetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: text })
@@ -657,7 +709,7 @@
 
     async function loadChannels() {
       try {
-        const res = await fetch('/api/channels');
+        const res = await apiFetch('/api/channels');
         if (!res.ok) throw new Error('Status: ' + res.status);
         const data = await res.json();
         if (data && data.channels) {
@@ -685,7 +737,7 @@
       }
 
       try {
-        const res = await fetch('/api/channels', {
+        const res = await apiFetch('/api/channels', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ channel_id: chanId, title: title, weight: weight })
@@ -712,7 +764,7 @@
     async function removeChannel(channelId) {
       if (!confirm('Ushbu kanalni kuzatuvdan olib tashlashni tasdiqlaysizmi?')) return;
       try {
-        const res = await fetch(`/api/channels/${encodeURIComponent(channelId)}`, { method: 'DELETE' });
+        const res = await apiFetch(`/api/channels/${encodeURIComponent(channelId)}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
           showToast('Kanal o\'chirildi', '🗑');
@@ -731,7 +783,7 @@
     // Main Polling function
     async function fetchStatus() {
       try {
-        const res = await fetch('/api/status');
+        const res = await apiFetch('/api/status');
         if (!res.ok) return;
         const data = await res.json();
         if (!data.success) return;
