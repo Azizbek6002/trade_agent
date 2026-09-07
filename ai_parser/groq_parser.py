@@ -74,10 +74,71 @@ OUTPUT JSON SCHEMA STRICTLY:
 """
 
 
+# ==========================================
+# LIVE INTERNET MARKET CONTEXT PROVIDER (Cached)
+# ==========================================
+class LiveMarketContext:
+    _cached_stats = {}
+    _last_stats_time = 0
+    _cached_news = []
+    _last_news_time = 0
+
+    @classmethod
+    def get_market_data(cls) -> dict:
+        now = time.time()
+        # 1. 24h Ticker Stats (60s cache)
+        if now - cls._last_stats_time > 60 or not cls._cached_stats:
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    "https://api.binance.com/api/v3/ticker/24hr?symbol=PAXGUSDT",
+                    headers={"User-Agent": "Mozilla/5.0"}
+                )
+                with urllib.request.urlopen(req, timeout=1.5) as resp:
+                    d = json.loads(resp.read().decode("utf-8"))
+                    cls._cached_stats = {
+                        "high": round(float(d.get("highPrice", 0)), 2),
+                        "low": round(float(d.get("lowPrice", 0)), 2),
+                        "change_percent": round(float(d.get("priceChangePercent", 0)), 2)
+                    }
+                    cls._last_stats_time = now
+            except Exception:
+                pass
+
+        # 2. Live Market / Gold Headlines (300s cache)
+        if now - cls._last_news_time > 300 or not cls._cached_news:
+            try:
+                import urllib.request
+                import xml.etree.ElementTree as ET
+                req2 = urllib.request.Request(
+                    "https://www.fxstreet.com/rss/news",
+                    headers={"User-Agent": "Mozilla/5.0"}
+                )
+                with urllib.request.urlopen(req2, timeout=2.0) as resp2:
+                    tree = ET.fromstring(resp2.read())
+                    items = []
+                    for item in tree.findall(".//item"):
+                        title = (item.find("title").text or "").strip()
+                        if any(w in title.lower() for w in ["gold", "xau", "usd", "fed", "inflation", "cpi"]):
+                            items.append(title)
+                            if len(items) >= 3:
+                                break
+                    if items:
+                        cls._cached_news = items
+                        cls._last_news_time = now
+            except Exception:
+                pass
+
+        return {
+            "stats": cls._cached_stats,
+            "news": cls._cached_news
+        }
+
+
 class RTBAIEngine:
     """
-    Robo Trader Boy (RTB) v2.0 AI Engine.
-    Primary engine: Google Gemini Pro / Flash with Strict System Prompt.
+    Dual AI Engine for RTB Trading Assistant.
+    Primary engine: Google Gemini Flash / Pro (gemini-3.5-flash).
     Secondary fallback: Groq API.
     Tertiary fallback: Regex heuristic rules.
     """
@@ -90,7 +151,7 @@ class RTBAIEngine:
         groq_model: str = config.GROQ_MODEL,
     ):
         self.gemini_api_key = gemini_api_key
-        self.gemini_model = gemini_model or "gemini-3.6-flash"
+        self.gemini_model = gemini_model or "gemini-3.5-flash"
         self.groq_api_key = groq_api_key
         self.groq_model = groq_model or "groq/compound"
 
@@ -121,12 +182,13 @@ class RTBAIEngine:
 
         user_content = f'Analyze this Telegram message for XAUUSD trading setup:\n"""\n{text}\n"""'
 
-        # 1. Primary: Try Gemini Pro / Flash with Strict System Instruction
+        # 1. Primary: Try Gemini Flash with Strict System Instruction
         if self.gemini_client and GEMINI_AVAILABLE:
-            models_to_try = [self.gemini_model]
-            for fallback_m in ["gemini-3.6-flash", "gemini-3-flash-preview"]:
-                if fallback_m not in models_to_try:
-                    models_to_try.append(fallback_m)
+            raw_models = [self.gemini_model, "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]
+            models_to_try = []
+            for m in raw_models:
+                if m and m not in models_to_try:
+                    models_to_try.append(m)
 
             config_gen = genai_types.GenerateContentConfig(
                 system_instruction=GEMINI_SIGNAL_SYSTEM_INSTRUCTION,
@@ -335,47 +397,69 @@ class RTBAIEngine:
         image_bytes: Optional[bytes] = None,
         image_mime_type: str = "image/jpeg"
     ) -> str:
+        # Retrieve live market context from internet (stats + financial headlines)
+        live_data = LiveMarketContext.get_market_data()
+        stats = live_data.get("stats", {})
+        news = live_data.get("news", [])
+
+        current_p = system_context.get("current_price") or "N/A"
+        bid_p = system_context.get("bid_price")
+        ask_p = system_context.get("ask_price")
+        if bid_p and ask_p:
+            price_str = f"Bid: {bid_p} | Ask: {ask_p} | Mid: {current_p} (Spread: {round(ask_p - bid_p, 3)})"
+        else:
+            price_str = f"{current_p}"
+
+        stats_lines = []
+        if stats:
+            stats_lines.append(f"- 24-soatlik Diapazon: Yuqori (High): {stats.get('high')}, Quyi (Low): {stats.get('low')}, 24h O'zgarish: {stats.get('change_percent')}%")
+        if news:
+            stats_lines.append("- Jonli Moliya Yangiliklari (Internet): " + "; ".join(news))
+
         context_summary = f"""
-SYSTEM LIVE CONTEXT:
-- Asset: XAUUSD (Gold)
-- Current Price: {system_context.get('current_price', 'N/A')}
-- Active Channels Monitored: {len(system_context.get('channels', []))}
-- Active Monitored Channels List: {[c.get('title') for c in system_context.get('channels', [])]}
-- Recent Signals in DB: {system_context.get('recent_signals', [])}
-- Risk Percent: {system_context.get('risk_percent', config.RISK_PER_TRADE_PERCENT)}%
+SYSTEM LIVE CONTEXT (Internet orqali jonli ma'lumotlar):
+- Aktiv: XAUUSD (Oltin)
+- Real Vaqtdagi Narx: {price_str}
+""" + ("\n".join(stats_lines) + "\n" if stats_lines else "") + f"""- Kuzatuvdagi Kanallar: {len(system_context.get('channels', []))} ta ({[c.get('title') for c in system_context.get('channels', [])]})
+- Bazadagi So'nggi Signallar: {system_context.get('recent_signals', [])}
+- Risk Limit: {system_context.get('risk_percent', config.RISK_PER_TRADE_PERCENT)}%
 """
 
         prompt = f"""
-You are Robo Trader Boy (RTB) — a Senior Professional XAUUSD (Gold) Trader and loyal AI student of your mentor (Ustoz).
+Siz RTB (Robo Trader Boy) — XAUUSD (Oltin) bo'yicha professional senior treyder, texnik tahlilchi va foydalanuvchining (Ustoz) shaxsiy AI hamkorisiz. Sizda jonli internet va bozor ma'lumotlari mavjud.
 
-Core Trading Philosophy & Scope:
-- Asset: Strictly XAUUSD (Gold).
-- Core Strategy: Classica (Trendlines, Fibonacci), SnR (Support & Resistance), Liquidity (Likvidlik tuzoqlari/sweeps), Max-Min (Market Structure / Swing High-Low).
+ASOSIY QOIDALAR VA TALABLAR:
+1. MUROJAAT VA OHANG: Foydalanuvchiga har doim "Ustoz" yoki "Ustozim" deb murojaat qiling. Rasmiyatchilik, sun'iy salomlashishlar ("Men sun'iy intellektman...", "Sizga qanday yordam beray?") qat'iyan taqiqlanadi. To'g'ridan-to'g'ri masalaning tub mohiyatiga o'ting.
+2. QISQA VA ANIQ (O'TA LO'NDA): Javoblarni 2-4 ta ixcham punktda, professional va o'ta aniq tilda bering. Cho'zma gaplar yoki nazariy darslik matnlari yozmang.
+3. STRATEGIYALAR (Classica, SnR, SMC, Liquidity, Fibo, Max-Min):
+   - Foydalanuvchi biror strategiya haqida so'rasa, uning amaliy qoidalarini (kirish nuqtasi, tasdiqlash, SL/TP o'rnatish, kamida 1:3 R:R) qisqa va tushunarli qilib ko'rsating.
+4. JONLI BOZOR TAHLILI:
+   - Bozor holati yoki narx so'ralsa, jonli kontekstdan foydalanib: joriy narx, kunlik High/Low diapazoni, qisqa trend holati va eng muhim qo'llab-quvvatlash/qarshilik (Support/Resistance/Order Block) zonalarini aniq belgilab bering.
 
-STRICT PERSONA RULES:
-1. Address the user respectfully as "Ustoz" (or "Ustozim"). Speak in natural, charismatic, confident Uzbek like a senior professional trader pair.
-2. NO ROBOTIC FORMALITIES. Do NOT say "Assalomu alaykum! Men AI man..." or "Sizga yordam berishdan xursandman". Start directly with trader-to-trader insights.
-3. Use trading terminology naturally (Classica, SnR, trend, fibo, liquidity sweep, otkat, BOS/CHoCH, max/min levels, RR, SL/TP).
-4. Be concise, clear, and comprehensive. Provide high-signal answers.
-
-User Query:
+Foydalanuvchi Savoli:
 "{user_query}"
 
-System Context:
 {context_summary}
 """
 
-        # 1. Primary: Try Gemini
-        if self.gemini_client:
-            models_to_try = [self.gemini_model]
-            for fallback_m in ["gemini-3.6-flash", "gemini-3-flash-preview"]:
-                if fallback_m not in models_to_try:
-                    models_to_try.append(fallback_m)
+        # 1. Primary: Try Gemini Flash (super-fast, <3s)
+        if self.gemini_client and GEMINI_AVAILABLE:
+            raw_models = [self.gemini_model, "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]
+            models_to_try = []
+            for m in raw_models:
+                if m and m not in models_to_try:
+                    models_to_try.append(m)
+
+            config_chat = genai_types.GenerateContentConfig(
+                temperature=0.25,
+                max_output_tokens=450,
+                thinking_config=genai_types.ThinkingConfig(thinking_budget=100)
+            )
 
             for m in models_to_try:
                 try:
                     contents = [prompt]
-                    if image_bytes and GEMINI_AVAILABLE:
+                    if image_bytes:
                         try:
                             img_part = genai_types.Part.from_bytes(data=image_bytes, mime_type=image_mime_type)
                             contents.append(img_part)
@@ -385,26 +469,28 @@ System Context:
                     response = self.gemini_client.models.generate_content(
                         model=m,
                         contents=contents,
-                        config={"temperature": 0.3, "max_output_tokens": 800}
+                        config=config_chat
                     )
-                    return response.text.strip()
+                    text = response.text.strip() if response and response.text else ""
+                    if text:
+                        return text
                 except Exception as e:
                     logger.warning(f"Gemini RTB Chat ({m}) failed: {e}")
 
         # 2. Secondary: Try Groq
         if self.groq_client:
-            for attempt in range(3):
+            for attempt in range(2):
                 try:
                     response = self.groq_client.chat.completions.create(
                         model=self.groq_model,
                         messages=[{"role": "user", "content": prompt}],
-                        temperature=0.3,
-                        max_tokens=600
+                        temperature=0.25,
+                        max_tokens=450
                     )
                     return response.choices[0].message.content.strip()
                 except Exception as e:
                     logger.warning(f"Groq Chat RTB attempt {attempt+1} failed: {e}")
-                    time.sleep(1)
+                    time.sleep(0.5)
 
         return "💬 **RTB:** Ustoz, tahlil serverlarida qisqa uzilish bo'ldi. Savolingizni qayta yuboring yoki birozdan so'ng tekshirib ko'ramiz."
 

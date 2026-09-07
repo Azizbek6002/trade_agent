@@ -23,7 +23,7 @@ class Config:
     
     # Google Gemini credentials
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
     
     # MetaTrader 5 parameters
     MT5_ACCOUNT: int = int(os.getenv("MT5_ACCOUNT", "0"))

@@ -648,17 +648,26 @@
       container.scrollTop = container.scrollHeight;
 
       sendBtn.disabled = true;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 22000);
+
       try {
         const res = await apiFetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
+          body: JSON.stringify({ message: text }),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
         const data = await res.json();
         document.getElementById(loadingId)?.remove();
 
-        const replyText = data.reply || 'Javob olishda xatolik yuz berdi.';
-        const formatted = replyText.replace(/\n/g, '<br>');
+        const replyText = data.reply || data.error || 'Javob olishda xatolik yuz berdi.';
+        let formatted = replyText
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/\*\*(.*?)\*\*/g, '<b class="text-white font-semibold">$1</b>')
+          .replace(/^\s*\*\s+/gm, '• ')
+          .replace(/\n/g, '<br>');
 
         container.innerHTML += `
           <div class="flex gap-2">
@@ -669,12 +678,16 @@
           </div>
         `;
       } catch (err) {
+        clearTimeout(timeoutId);
         document.getElementById(loadingId)?.remove();
+        const msg = err.name === 'AbortError'
+          ? "Server javob berishda kechikdi. Qaytadan urinib ko'ring."
+          : "Server bilan aloqa uzildi. Qaytadan urinib ko'ring.";
         container.innerHTML += `
           <div class="flex gap-2">
             <div class="w-6 h-6 rounded-sm bg-rose-600 text-white font-bold flex items-center justify-center shrink-0 text-[10px]">!</div>
             <div class="bg-[#0c0d12] border border-rose-500/40 rounded-sm p-2 text-rose-300 text-xs">
-              Server bilan aloqa uzildi. Qaytadan urinib ko'ring.
+              ${msg}
             </div>
           </div>
         `;

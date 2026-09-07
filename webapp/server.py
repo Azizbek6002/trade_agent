@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -263,7 +264,7 @@ async def close_trade(req: CloseTradeRequest) -> Dict[str, Any]:
 @app.post("/api/ai/chat")
 async def ai_chat_endpoint(req: ChatMessageRequest) -> Dict[str, Any]:
     """
-    Direct Senior Gold Trader AI chat powered by Gemini Pro with live market context.
+    Direct Senior Gold Trader AI chat powered by Gemini Flash with live market context.
     """
     try:
         price_info = mt5_bridge.get_current_price()
@@ -273,13 +274,29 @@ async def ai_chat_endpoint(req: ChatMessageRequest) -> Dict[str, Any]:
 
         system_context = {
             "current_price": price_info.get("mid"),
+            "bid_price": price_info.get("bid"),
+            "ask_price": price_info.get("ask"),
             "channels": active_channels,
             "recent_signals": recent_signals,
             "risk_percent": current_risk
         }
 
-        reply = groq_parser.chat_with_ai(req.message, system_context)
+        # Non-blocking async execution with 20s timeout
+        reply = await asyncio.wait_for(
+            asyncio.to_thread(groq_parser.chat_with_ai, req.message, system_context),
+            timeout=20.0
+        )
         return {"success": True, "reply": reply}
+    except asyncio.TimeoutError:
+        logger.warning("AI Chat execution timed out after 20s")
+        return JSONResponse(
+            status_code=504,
+            content={
+                "success": False,
+                "error": "Timeout",
+                "reply": "Ustoz, tahlil serverida javob berish biroz kechikdi. Iltimos, savolingizni qayta yuboring."
+            }
+        )
     except Exception as e:
         logger.error(f"AI Chat error: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"success": False, "error": str(e), "reply": f"Xatolik yuz berdi: {str(e)}"})
