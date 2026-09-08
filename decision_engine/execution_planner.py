@@ -21,36 +21,54 @@ class ExecutionPlanner:
 
     def decide_execution_type(self, setup: Dict[str, Any], current_price: float) -> Dict[str, Any]:
         direction = setup["direction"]
-        zone_min = setup["zone_min"]
-        zone_max = setup["zone_max"]
-        confidence = setup.get("confidence_score", 0.0)
+        zone_min = float(setup["zone_min"])
+        zone_max = float(setup["zone_max"])
+        sl_price = float(setup["sl"]) if setup.get("sl") else None
 
-        # High confidence setup (>= 75%) -> Place Limit Order
-        if confidence >= 75.0:
-            limit_price = zone_max if direction == "BUY" else zone_min
-            return {
-                "execution_mode": "LIMIT",
-                "order_type": "LIMIT",
-                "price": round(limit_price, 2),
-                "reason": f"High confidence consensus setup ({confidence}%)"
-            }
+        # Check if price already breached SL
+        if sl_price:
+            if direction == "BUY" and current_price <= sl_price:
+                return {
+                    "execution_mode": "REJECT",
+                    "order_type": "NONE",
+                    "price": None,
+                    "reason": f"Narx allaqachon Stop Loss ({sl_price}) darajasidan o'tib ketgan."
+                }
+            if direction == "SELL" and current_price >= sl_price:
+                return {
+                    "execution_mode": "REJECT",
+                    "order_type": "NONE",
+                    "price": None,
+                    "reason": f"Narx allaqachon Stop Loss ({sl_price}) darajasidan o'tib ketgan."
+                }
 
-        # Price currently inside entry zone -> Market Order
-        is_price_in_zone = zone_min <= current_price <= zone_max
+        # 1. Price currently inside entry zone (with 0.5 tolerance) -> Immediate Market Order
+        is_price_in_zone = (zone_min - 0.5) <= current_price <= (zone_max + 0.5)
         if is_price_in_zone:
             return {
                 "execution_mode": "MARKET",
                 "order_type": "MARKET",
                 "price": round(current_price, 2),
-                "reason": f"Price inside consensus zone [{zone_min} - {zone_max}]"
+                "reason": f"Price inside entry zone [{zone_min} - {zone_max}]"
             }
 
-        return {
-            "execution_mode": "WAIT",
-            "order_type": "NONE",
-            "price": None,
-            "reason": f"Waiting for price ({current_price}) to reach entry zone [{zone_min} - {zone_max}]"
-        }
+        # 2. Place Limit Order at the edge of the zone
+        if direction == "BUY":
+            limit_price = zone_max
+            return {
+                "execution_mode": "LIMIT",
+                "order_type": "LIMIT",
+                "price": round(limit_price, 2),
+                "reason": f"Pending Buy Limit at zone edge {limit_price}"
+            }
+        else:
+            limit_price = zone_max if current_price > zone_max else zone_min
+            return {
+                "execution_mode": "LIMIT",
+                "order_type": "LIMIT",
+                "price": round(limit_price, 2),
+                "reason": f"Pending Sell Limit at zone edge {limit_price}"
+            }
 
     async def evaluate_and_execute_setup(
         self,
@@ -79,12 +97,26 @@ class ExecutionPlanner:
 
         # 3. Determine order execution parameters
         exec_plan = self.decide_execution_type(setup, current_price)
-        if exec_plan["execution_mode"] == "WAIT":
+        if exec_plan["execution_mode"] in ("WAIT", "REJECT"):
             return {"success": False, "reason": exec_plan["reason"]}
 
         order_price = exec_plan["price"]
         sl_price = setup.get("sl")
-        tp_price = setup.get("tp") or (setup.get("tp_targets", [None])[0])
+
+        # Safely extract TP or auto-calculate default 1:3 RR
+        tp_price = setup.get("tp")
+        tp_targets = setup.get("tp_targets") or []
+        if not tp_price and len(tp_targets) > 0 and tp_targets[0] is not None:
+            tp_price = float(tp_targets[0])
+
+        if not tp_price and sl_price and order_price:
+            sl_dist = abs(order_price - sl_price)
+            target_rr = getattr(config, "TARGET_RR", 3.0)
+            if setup.get("direction") == "BUY":
+                tp_price = round(order_price + (target_rr * sl_dist), 2)
+            else:
+                tp_price = round(order_price - (target_rr * sl_dist), 2)
+            logger.info(f"Auto-calculated 1:{target_rr} RR Take Profit: {tp_price}")
 
         if not sl_price:
             return {"success": False, "reason": "Missing Stop Loss in setup."}

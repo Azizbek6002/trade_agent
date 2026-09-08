@@ -159,15 +159,19 @@ class TelegramChannelListener:
                         )
 
                         # Auto-execute trade on Exness MT5 via Execution Planner
+                        ch_weight = float(matched_channel.get("weight", 1.5))
+                        tp_targets = parsed.get("tp_targets") or []
+                        tp_first = tp_targets[0] if len(tp_targets) > 0 else None
+
                         setup = {
                             "direction": parsed["direction"],
                             "zone_min": parsed["zone_min"],
                             "zone_max": parsed["zone_max"],
                             "sl": parsed.get("sl"),
-                            "tp": (parsed.get("tp_targets", [None]) or [None])[0],
-                            "tp_targets": parsed.get("tp_targets", []),
-                            "confidence_score": 85.0,
-                            "sources": [{"source": channel_title, "weight": 1.5}]
+                            "tp": tp_first,
+                            "tp_targets": tp_targets,
+                            "confidence_score": min(95.0, max(75.0, ch_weight * 10.0)),
+                            "sources": [{"source": channel_title, "weight": ch_weight}]
                         }
                         from decision_engine.execution_planner import execution_planner
                         exec_res = await execution_planner.evaluate_and_execute_setup(setup)

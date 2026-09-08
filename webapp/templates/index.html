@@ -157,7 +157,7 @@
           <h2 class="text-[11px] font-bold uppercase tracking-wider text-white">
             📡 Oxirgi Signallar
           </h2>
-          <span class="text-[10px] text-[#a1a1aa]">TraderStage & VIP</span>
+          <span class="text-[10px] text-emerald-400 font-medium flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Jonli kanallar</span>
         </div>
         <div id="signalsList" class="space-y-2">
           <p class="text-xs text-[#a1a1aa] text-center py-2.5">Signallar yuklanmoqda...</p>
@@ -344,7 +344,7 @@
       <div class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-3">
         <h3 class="text-[11px] font-bold uppercase tracking-wider text-white mb-2">➕ Yangi Kanal Qo'shish</h3>
         <div class="space-y-2 text-xs">
-          <input type="text" id="newChanTitle" placeholder="Kanal nomi (masalan: TraderStage VIP)" class="w-full bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
+          <input type="text" id="newChanTitle" placeholder="Kanal nomi (masalan: MTW yoki TraderStage)" class="w-full bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
           <div class="grid grid-cols-2 gap-2">
             <div>
               <input type="text" id="newChanId" placeholder="ID yoki @username" class="w-full bg-black border border-[#1c202c] rounded-sm px-3 py-2 text-white placeholder-[#a1a1aa] focus:outline-none focus:border-[#2962ff]">
@@ -969,7 +969,18 @@
 
       container.innerHTML = signals.map(s => {
         const isBuy = (s.direction || '').toUpperCase() === 'BUY';
-        const tps = Array.isArray(s.tp_targets) ? s.tp_targets.join(', ') : (s.tp_targets || '-');
+        let tps = '-';
+        if (Array.isArray(s.tp_targets) && s.tp_targets.length > 0) {
+          tps = s.tp_targets.join(', ');
+        } else if (typeof s.tp_targets === 'string' && s.tp_targets.trim() && s.tp_targets !== '[]') {
+          tps = s.tp_targets.replace(/[\[\]"]/g, '');
+        } else if (s.sl && s.zone_min) {
+          const entry = parseFloat(s.zone_min);
+          const sl = parseFloat(s.sl);
+          const dist = Math.abs(entry - sl);
+          const autoTp = isBuy ? (entry + 3.0 * dist) : (entry - 3.0 * dist);
+          tps = `${autoTp.toFixed(1)} (1:3 RR)`;
+        }
         return `
           <div class="bg-black border border-[#1c202c] rounded-sm p-2 text-xs">
             <div class="flex items-center justify-between">

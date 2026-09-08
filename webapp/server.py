@@ -118,6 +118,25 @@ async def get_system_status() -> Dict[str, Any]:
         account = mt5_bridge.get_account_info()
         price = mt5_bridge.get_current_price()
         open_positions = mt5_bridge.get_open_positions()
+        if not open_positions:
+            open_trades = await db.get_open_trades()
+            cur_price = price.get("mid", 4438.9)
+            for tr in open_trades:
+                is_buy = tr.get("direction") == "BUY"
+                entry = float(tr.get("entry_price", cur_price))
+                lot = float(tr.get("lot_size", 0.01))
+                diff = (cur_price - entry) if is_buy else (entry - cur_price)
+                calc_profit = round(diff * lot * 100.0, 2)
+                open_positions.append({
+                    "ticket": tr.get("ticket"),
+                    "direction": tr.get("direction"),
+                    "price_open": entry,
+                    "price_current": cur_price,
+                    "sl": tr.get("sl_price"),
+                    "tp": tr.get("tp_price"),
+                    "lot": lot,
+                    "profit": calc_profit
+                })
 
         # 2. Settings from SQLite
         risk_setting_val = await db.get_setting("risk_percent", str(config.RISK_PER_TRADE_PERCENT))
