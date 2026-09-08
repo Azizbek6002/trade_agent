@@ -16,7 +16,7 @@
 
 //--- Input Parameters
 input group "=== RTB SERVER SETTINGS ==="
-input string   InpServerUrl       = "https://bronze-gnu-keen-attended.trycloudflare.com"; // Server URL (Cloudflare or Localhost)
+input string   InpServerUrl       = "http://127.0.0.1:8000"; // Server URL (Localhost or Cloudflare)
 input string   InpAdminKey        = "7266764356"; // Admin Authorization Key
 input int      InpPollIntervalMs  = 800;          // Polling Interval (ms)
 
