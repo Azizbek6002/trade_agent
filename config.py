@@ -56,6 +56,23 @@ class Config:
     # WebApp & API Server
     WEBAPP_HOST: str = os.getenv("WEBAPP_HOST", "0.0.0.0")
     WEBAPP_PORT: int = int(os.getenv("WEBAPP_PORT", "8000"))
-    WEBAPP_URL: str = os.getenv("WEBAPP_URL", "http://localhost:8000")
+
+    @property
+    def WEBAPP_URL(self) -> str:
+        # Check active environment first
+        env_val = os.getenv("WEBAPP_URL")
+        # Check .env file directly for live tunnel updates
+        env_file = BASE_DIR / ".env"
+        if env_file.exists():
+            try:
+                for line in env_file.read_text().splitlines():
+                    if line.strip().startswith("WEBAPP_URL="):
+                        val = line.split("=", 1)[1].strip()
+                        if val:
+                            return val
+            except Exception:
+                pass
+        return env_val or "http://localhost:8000"
+
 
 config = Config()
