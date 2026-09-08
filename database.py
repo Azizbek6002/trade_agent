@@ -239,18 +239,19 @@ class Database:
         risk_percent: float,
         risk_usd: float,
         lot_size: float,
-        sources: List[str] = None
+        sources: List[str] = None,
+        status: str = "OPEN"
     ) -> int:
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
                 """
                 INSERT INTO trades 
                 (ticket, direction, entry_price, sl_price, tp_price, risk_percent, risk_usd, lot_size, status, sources_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     ticket, direction, entry_price, sl_price, tp_price,
-                    risk_percent, risk_usd, lot_size, json.dumps(sources or [])
+                    risk_percent, risk_usd, lot_size, status, json.dumps(sources or [])
                 )
             )
             await db.commit()
@@ -278,7 +279,7 @@ class Database:
     async def get_open_trades(self) -> List[Dict[str, Any]]:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            async with db.execute("SELECT * FROM trades WHERE status = 'OPEN' ORDER BY id DESC") as cursor:
+            async with db.execute("SELECT * FROM trades WHERE status IN ('OPEN', 'PENDING') ORDER BY id DESC") as cursor:
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
 

@@ -204,19 +204,23 @@ class MT5Bridge:
         if not MT5_AVAILABLE or not self.is_connected:
             self._simulated_ticket_counter += 1
             ticket = self._simulated_ticket_counter
+            status = "PENDING" if "LIMIT" in order_type.upper() else "OPEN"
             self._simulated_positions[ticket] = {
                 "ticket": ticket,
                 "action": action,
+                "direction": action,
                 "order_type": order_type,
                 "price": price,
+                "price_open": price,
+                "open_price": price,
                 "lot": lot,
                 "sl": sl,
                 "tp": tp,
-                "status": "OPEN",
+                "status": status,
                 "open_time": time.time()
             }
             logger.info(
-                f"[SIMULATOR] Order opened #{ticket}: {action} {order_type} | Lot: {lot} @ {price} | SL: {sl}, TP: {tp}"
+                f"[SIMULATOR] Order opened #{ticket}: {action} {order_type} | Lot: {lot} @ {price} | SL: {sl}, TP: {tp} | Status: {status}"
             )
             return {
                 "success": True,
@@ -224,6 +228,7 @@ class MT5Bridge:
                 "price": price,
                 "lot": lot,
                 "order_type": order_type,
+                "status": status,
                 "comment": "Simulated Execution"
             }
 
@@ -397,9 +402,47 @@ class MT5Bridge:
             return False
 
     def get_open_positions(self) -> List[Dict[str, Any]]:
-        """Returns all open positions for the monitored symbol."""
+        """Returns all open positions and pending limit orders for the monitored symbol."""
         if not MT5_AVAILABLE or not self.is_connected:
-            return list(self._simulated_positions.values())
+            price_info = self.get_current_price()
+            cur_price = price_info["mid"]
+            res = []
+            for p in list(self._simulated_positions.values()):
+                action = p.get("action") or p.get("direction", "BUY")
+                entry = float(p.get("price_open") or p.get("price", cur_price))
+                lot = float(p.get("lot", 0.01))
+                is_buy = (action == "BUY")
+                order_type = p.get("order_type", "MARKET")
+                status = p.get("status", "OPEN")
+
+                # If pending limit order, check if market price has reached/filled it
+                if status == "PENDING":
+                    if (not is_buy and cur_price >= entry) or (is_buy and cur_price <= entry):
+                        p["status"] = "OPEN"
+                        p["price_open"] = entry
+                        status = "OPEN"
+                        logger.info(f"🎯 [SIMULATOR] Limit Order #{p.get('ticket')} FILLED at {entry}!")
+
+                profit = 0.0
+                if status == "OPEN":
+                    diff = (cur_price - entry) if is_buy else (entry - cur_price)
+                    profit = round(diff * lot * 100.0, 2)
+
+                res.append({
+                    "ticket": p.get("ticket"),
+                    "direction": action,
+                    "action": action,
+                    "order_type": order_type,
+                    "price_open": entry,
+                    "open_price": entry,
+                    "price_current": cur_price,
+                    "sl": p.get("sl"),
+                    "tp": p.get("tp"),
+                    "lot": lot,
+                    "status": status,
+                    "profit": profit
+                })
+            return res
 
         try:
             positions = mt5.positions_get(symbol=self.symbol)

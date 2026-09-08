@@ -923,31 +923,38 @@
       }
 
       container.innerHTML = positions.map(p => {
-        const isBuy = (p.direction || '').toUpperCase() === 'BUY';
+        const dir = (p.direction || p.action || 'SELL').toUpperCase();
+        const isBuy = dir === 'BUY';
+        const isLimit = (p.status || '').toUpperCase() === 'PENDING' || (p.order_type || '').toUpperCase().includes('LIMIT');
         const profit = parseFloat(p.profit || 0);
         const profitColor = profit >= 0 ? 'text-emerald-400' : 'text-rose-400';
+        const entryPrice = p.price_open ?? p.open_price ?? p.price ?? '-';
+
+        const typeBadge = isLimit
+          ? `<span class="px-1.5 py-0.5 rounded-sm text-[9px] font-extrabold bg-amber-500/15 text-amber-400 border border-amber-500/30">${dir} LIMIT</span>`
+          : `<span class="px-1.5 py-0.5 rounded-sm text-[9px] font-extrabold ${isBuy ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}">${dir}</span>`;
+
         return `
           <div class="bg-black border border-[#1c202c] rounded-sm p-2.5 flex items-center justify-between">
             <div class="space-y-1">
               <div class="flex items-center gap-2">
-                <span class="px-1.5 py-0.5 rounded-sm text-[9px] font-extrabold ${isBuy ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}">
-                  ${p.direction}
-                </span>
+                ${typeBadge}
                 <span class="text-xs font-bold text-white">#${p.ticket}</span>
                 <span class="text-[11px] text-[#a1a1aa]">${p.lot || 0.01} lot</span>
+                ${isLimit ? '<span class="text-[9px] text-amber-400 font-mono italic">(kutilmoqda)</span>' : ''}
               </div>
               <div class="text-[10px] text-[#a1a1aa] space-x-2">
-                <span>Kirish: <b class="text-white">${p.price_open || p.open_price}</b></span>
+                <span>Kirish: <b class="text-white">${entryPrice}</b></span>
                 <span>SL: <b class="text-rose-400">${p.sl || '-'}</b></span>
                 <span>TP: <b class="text-emerald-400">${p.tp || '-'}</b></span>
               </div>
             </div>
             <div class="text-right space-y-1.5">
-              <div class="text-xs font-bold ${profitColor}">
-                ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}
+              <div class="text-xs font-bold ${isLimit ? 'text-amber-400' : profitColor}">
+                ${isLimit ? 'LIMIT' : ((profit >= 0 ? '+' : '') + '$' + profit.toFixed(2))}
               </div>
               <button onclick="closePosition(${p.ticket})" class="px-2 py-0.5 text-[10px] font-bold rounded-sm bg-[#1c202c] hover:bg-rose-600 text-rose-300 hover:text-white transition">
-                Yopish
+                ${isLimit ? 'Bekor qilish' : 'Yopish'}
               </button>
             </div>
           </div>
