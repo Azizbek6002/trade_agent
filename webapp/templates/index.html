@@ -107,6 +107,20 @@
     <!-- ======================================================== -->
     <div id="content-dashboard" class="tab-content space-y-3">
 
+      <!-- MT5 EA Bridge Status Banner -->
+      <div id="eaBridgeBanner" class="bg-[#0c0d12] border border-[#1c202c] rounded-sm p-2.5 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <span id="eaDot" class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+          <div>
+            <div id="eaTitle" class="font-bold text-white text-[11px]">Exness MT5 Robotcha (EA)</div>
+            <div id="eaSubtitle" class="text-[10px] text-[#a1a1aa]">Ulanish kutilmoqda...</div>
+          </div>
+        </div>
+        <a href="/api/mt5/download-ea" download="RTB_Exness_Bridge.mq5" class="px-2.5 py-1 text-[10px] font-bold rounded-sm bg-[#1c202c] hover:bg-amber-600/30 text-[#f59e0b] border border-[#f59e0b]/40 flex items-center gap-1 transition">
+          📥 EA (.mq5)
+        </a>
+      </div>
+
       <!-- Live Balance & XAUUSD Market Cards -->
       <div class="grid grid-cols-2 gap-2.5">
         <!-- Balance Card -->
@@ -904,6 +918,25 @@
           const channelsContainer = document.getElementById('channels-list');
           if (channelsContainer && !document.getElementById('content-channels').classList.contains('hidden')) {
             renderChannelsList(localChannelsCache);
+          }
+        }
+
+        // 10. MT5 EA Bridge Telemetry
+        if (data.ea_bridge) {
+          const eaDot = document.getElementById('eaDot');
+          const eaTitle = document.getElementById('eaTitle');
+          const eaSubtitle = document.getElementById('eaSubtitle');
+          if (eaDot && eaTitle && eaSubtitle) {
+            if (data.ea_bridge.connected) {
+              eaDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] shrink-0";
+              eaTitle.innerHTML = `Exness MT5 <span class="text-emerald-400 font-bold">ULANGAN 🟢</span>`;
+              const sec = data.ea_bridge.last_seen_seconds_ago !== null ? `${data.ea_bridge.last_seen_seconds_ago}s oldin` : 'Hozirgina';
+              eaSubtitle.textContent = `Hisob: #${data.ea_bridge.account || 'Exness'} • ${data.ea_bridge.broker || 'Real'} (${sec})`;
+            } else {
+              eaDot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0";
+              eaTitle.innerHTML = `Exness MT5 <span class="text-amber-400 font-normal">(Kutilmoqda / Offline)</span>`;
+              eaSubtitle.textContent = `MT5 terminalida EA ni yoqing yoki yuklab oling`;
+            }
           }
         }
 

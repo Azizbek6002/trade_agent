@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -75,6 +76,15 @@ class CloseTradeRequest(BaseModel):
     lot: Optional[float] = Field(None, description="Optional partial lot to close")
 
 
+class OpenTradeRequest(BaseModel):
+    action: str = Field(..., description="BUY or SELL")
+    order_type: str = Field("MARKET", description="MARKET or LIMIT")
+    price: Optional[float] = Field(None, description="Entry price (optional for MARKET)")
+    lot: float = Field(0.01, description="Lot size")
+    sl: Optional[float] = Field(None, description="Stop Loss price")
+    tp: Optional[float] = Field(None, description="Take Profit price")
+
+
 class ChatMessageRequest(BaseModel):
     message: str = Field(..., description="Message from user")
 
@@ -87,6 +97,31 @@ class AddChannelRequest(BaseModel):
 
 class DeleteChannelRequest(BaseModel):
     channel_id: str = Field(..., description="Channel ID or username to delete")
+
+
+class MT5HeartbeatRequest(BaseModel):
+    account: Optional[int] = None
+    server: Optional[str] = None
+    broker: Optional[str] = None
+    balance: Optional[float] = 5000.0
+    equity: Optional[float] = 5000.0
+    margin: Optional[float] = 0.0
+    free_margin: Optional[float] = 5000.0
+    leverage: Optional[int] = 2000
+    currency: Optional[str] = "USD"
+    symbol: Optional[str] = "XAUUSD"
+    bid: Optional[float] = None
+    ask: Optional[float] = None
+    open_positions: Optional[list] = []
+
+
+class MT5ConfirmRequest(BaseModel):
+    action_id: str
+    success: bool
+    ticket: Optional[int] = 0
+    price: Optional[float] = 0.0
+    lot: Optional[float] = 0.0
+    error: Optional[str] = ""
 
 
 # ==========================================
@@ -181,7 +216,8 @@ async def get_system_status() -> Dict[str, Any]:
             "latest_signals": latest_signals,
             "trade_history": trade_history,
             "performance": performance,
-            "channels": active_channels
+            "channels": active_channels,
+            "ea_bridge": mt5_bridge.get_ea_status()
         }
     except Exception as e:
         logger.error(f"Error fetching Mini App status: {e}", exc_info=True)
@@ -239,13 +275,52 @@ async def toggle_killswitch(req: KillSwitchRequest) -> Dict[str, Any]:
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
+@app.post("/api/trades/open")
+async def open_trade_endpoint(req: OpenTradeRequest) -> Dict[str, Any]:
+    """
+    Manually or programmatically executes a trade via the MT5 Bridge.
+    Routes to connected Exness MT5 EA, Native MT5, or Simulator.
+    """
+    try:
+        cur_price = mt5_bridge.get_current_price()["mid"]
+        price = req.price if req.price is not None else cur_price
+        res = await asyncio.to_thread(
+            mt5_bridge.execute_order,
+            action=req.action.upper(),
+            order_type=req.order_type.upper(),
+            price=price,
+            lot=req.lot,
+            sl=req.sl or 0.0,
+            tp=req.tp or 0.0,
+            comment="RTB Manual/API"
+        )
+        if res.get("success"):
+            ticket = res.get("ticket", 0)
+            status_val = res.get("status", "OPEN")
+            await db.open_trade(
+                ticket=ticket,
+                direction=req.action.upper(),
+                entry_price=res.get("price", price),
+                sl_price=req.sl or 0.0,
+                tp_price=req.tp or 0.0,
+                risk_percent=1.0,
+                risk_usd=0.0,
+                lot_size=req.lot,
+                status=status_val
+            )
+        return res
+    except Exception as e:
+        logger.error(f"Error opening trade: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
 @app.post("/api/trades/close")
 async def close_trade(req: CloseTradeRequest) -> Dict[str, Any]:
     """
     Manually closes an open position from the Mini App.
     """
     try:
-        res = mt5_bridge.close_position(ticket=req.ticket, lot=req.lot)
+        res = await asyncio.to_thread(mt5_bridge.close_position, ticket=req.ticket, lot=req.lot)
         if res.get("success"):
             # Update DB trade status if ticket matches
             open_trades = await db.get_open_trades()
@@ -274,6 +349,91 @@ async def close_trade(req: CloseTradeRequest) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error closing position #{req.ticket}: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+# ==========================================
+# EXNESS MT5 EA BRIDGE ENDPOINTS
+# ==========================================
+
+@app.post("/api/mt5/heartbeat")
+async def mt5_ea_heartbeat(req: MT5HeartbeatRequest) -> Dict[str, Any]:
+    """
+    Heartbeat and Telemetry endpoint called by remote MQL5 EA (RTB_Exness_Bridge.mq5).
+    Synchronizes balance, equity, live quotes, and returns pending trade actions.
+    """
+    try:
+        data = req.dict()
+        pending_actions = mt5_bridge.handle_ea_heartbeat(data)
+        return {
+            "success": True,
+            "server_time": time.time(),
+            "actions": pending_actions
+        }
+    except Exception as e:
+        logger.error(f"Error handling MT5 EA heartbeat: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.get("/api/mt5/actions")
+async def mt5_get_actions() -> Dict[str, Any]:
+    """
+    Polls pending actions for MT5 EA.
+    """
+    try:
+        actions = mt5_bridge.get_pending_ea_actions()
+        return {
+            "success": True,
+            "actions": actions
+        }
+    except Exception as e:
+        logger.error(f"Error getting pending MT5 actions: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.post("/api/mt5/confirm")
+async def mt5_ea_confirm(req: MT5ConfirmRequest) -> Dict[str, Any]:
+    """
+    Confirmation callback called by remote MQL5 EA once an action is executed on MT5.
+    """
+    try:
+        mt5_bridge.confirm_ea_action(
+            action_id=req.action_id,
+            success=req.success,
+            ticket=req.ticket or 0,
+            price=req.price or 0.0,
+            lot=req.lot or 0.0,
+            error=req.error or ""
+        )
+        return {"success": True, "action_id": req.action_id, "confirmed": True}
+    except Exception as e:
+        logger.error(f"Error confirming MT5 EA action: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.get("/api/mt5/status")
+async def mt5_ea_status() -> Dict[str, Any]:
+    """
+    Returns current status of the remote Exness MT5 EA connection.
+    """
+    return {
+        "success": True,
+        "ea_bridge": mt5_bridge.get_ea_status()
+    }
+
+
+@app.get("/api/mt5/download-ea")
+async def download_ea_script():
+    """
+    Serves the RTB_Exness_Bridge.mq5 Expert Advisor source file for download.
+    """
+    ea_file = BASE_DIR / "execution_engine" / "mt5_ea" / "RTB_Exness_Bridge.mq5"
+    if not ea_file.exists():
+        raise HTTPException(status_code=404, detail="RTB_Exness_Bridge.mq5 file not found")
+    return FileResponse(
+        str(ea_file),
+        media_type="text/plain",
+        filename="RTB_Exness_Bridge.mq5"
+    )
 
 
 # ==========================================

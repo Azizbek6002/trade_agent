@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Dict, Optional, Any
 from news_filter.economic_calendar import news_filter
@@ -134,8 +135,9 @@ class ExecutionPlanner:
                 logger.warning(f"Level {idx+1} lot calculation error: {err}")
                 continue
 
-            # Dispatch order to MT5 Bridge
-            mt5_res = mt5_bridge.execute_order(
+            # Dispatch order to MT5 Bridge (non-blocking thread execution)
+            mt5_res = await asyncio.to_thread(
+                mt5_bridge.execute_order,
                 action=direction,
                 order_type=order_type,
                 price=order_price,

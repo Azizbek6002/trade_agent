@@ -236,9 +236,9 @@ class Database:
         entry_price: float,
         sl_price: float,
         tp_price: float,
-        risk_percent: float,
-        risk_usd: float,
-        lot_size: float,
+        risk_percent: float = 1.0,
+        risk_usd: float = 0.0,
+        lot_size: float = 0.01,
         sources: List[str] = None,
         status: str = "OPEN"
     ) -> int:

@@ -12,18 +12,16 @@ try:
     MT5_AVAILABLE = True
 except ImportError:
     MT5_AVAILABLE = False
-    logger.warning("MetaTrader5 python module not installed natively. Operating in Simulated / Bridge mode.")
+    logger.warning("MetaTrader5 python module not installed natively. Operating in Simulated / EA Bridge mode.")
 
 
 class MT5Bridge:
     """
     Exness MT5 Execution Bridge (RTB v2.0).
-    Lightweight, fast interface for MetaTrader 5 terminal:
-    - Order Execution: Market (BUY/SELL) and Pending (BUY_LIMIT/SELL_LIMIT).
-    - Exness Filling Modes Fallback (IOC -> FOK -> RETURN).
-    - Position Management: Modify SL/TP, Partial/Full Close, Cancel Pending.
-    - Real-time ticks and symbol specifications.
-    - Seamless simulated fallback for development/testing on Linux.
+    Dual-mode execution architecture:
+    1. Remote MQL5 Expert Advisor Bridge (RTB_Exness_Bridge.mq5 via HTTP WebRequest)
+    2. Native Windows MT5 Python API (when running natively on Windows)
+    3. High-performance Simulated fallback for offline Linux testing.
     """
 
     def __init__(self, symbol: str = config.MT5_SYMBOL):
@@ -34,9 +32,122 @@ class MT5Bridge:
         self._last_price: Dict[str, float] = {"bid": 4391.116, "ask": 4391.376, "mid": 4391.246}
         self._last_price_time: float = 0.0
 
+        # Remote MQL5 EA Bridge State
+        self._ea_last_seen: float = 0.0
+        self._ea_account_info: Dict[str, Any] = {}
+        self._ea_positions: List[Dict[str, Any]] = []
+        self._ea_quotes: Dict[str, float] = {}
+        self._pending_ea_actions: Dict[str, Dict[str, Any]] = {}
+        self._action_results: Dict[str, Dict[str, Any]] = {}
+        self._action_counter: int = 1000
+
+    def is_ea_connected(self) -> bool:
+        """Returns True if remote Exness MT5 EA sent a heartbeat within the last 15 seconds."""
+        return (time.time() - self._ea_last_seen) < 15.0
+
+    def get_ea_status(self) -> Dict[str, Any]:
+        """Telemetry details about the connected MT5 EA."""
+        connected = self.is_ea_connected()
+        last_seen_sec = round(time.time() - self._ea_last_seen, 1) if self._ea_last_seen > 0 else None
+        return {
+            "connected": connected,
+            "last_seen_seconds_ago": last_seen_sec,
+            "account": self._ea_account_info.get("account"),
+            "broker": self._ea_account_info.get("broker"),
+            "server": self._ea_account_info.get("server"),
+            "monitored_symbol": self.symbol,
+            "pending_actions_count": len(self._pending_ea_actions)
+        }
+
+    def handle_ea_heartbeat(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Receives heartbeat telemetry from remote MQL5 EA on Exness MT5 terminal.
+        Updates internal account telemetry, quotes, and open positions.
+        Returns any pending actions awaiting execution by the EA.
+        """
+        self._ea_last_seen = time.time()
+        self.is_connected = True
+
+        # 1. Account Info
+        self._ea_account_info = {
+            "balance": float(data.get("balance", 5000.0)),
+            "equity": float(data.get("equity", 5000.0)),
+            "margin": float(data.get("margin", 0.0)),
+            "free_margin": float(data.get("free_margin", 5000.0)),
+            "currency": str(data.get("currency", "USD")),
+            "account": data.get("account"),
+            "broker": data.get("broker"),
+            "server": data.get("server")
+        }
+
+        # 2. Live Quotes from Exness terminal
+        bid = float(data.get("bid", 0))
+        ask = float(data.get("ask", 0))
+        if bid > 0 and ask > 0:
+            self._ea_quotes = {
+                "bid": round(bid, 3),
+                "ask": round(ask, 3),
+                "mid": round((bid + ask) / 2.0, 3)
+            }
+            self._last_price = self._ea_quotes
+            self._last_price_time = self._ea_last_seen
+
+        # 3. Synchronize open positions & pending orders
+        if "open_positions" in data and isinstance(data["open_positions"], list):
+            synced = []
+            for p in data["open_positions"]:
+                is_pending = bool(p.get("is_pending", False))
+                order_type = str(p.get("type", "MARKET"))
+                action = "BUY" if "BUY" in order_type else "SELL"
+                entry = float(p.get("price_open", 0.0))
+                synced.append({
+                    "ticket": int(p.get("ticket", 0)),
+                    "direction": action,
+                    "action": action,
+                    "order_type": order_type,
+                    "price_open": entry,
+                    "open_price": entry,
+                    "price_current": self._ea_quotes.get("mid", entry),
+                    "sl": float(p.get("sl", 0.0)),
+                    "tp": float(p.get("tp", 0.0)),
+                    "lot": float(p.get("volume", 0.01)),
+                    "profit": float(p.get("profit", 0.0)),
+                    "status": "PENDING" if is_pending else "OPEN"
+                })
+            self._ea_positions = synced
+
+        # Return list of actions for EA to execute
+        return list(self._pending_ea_actions.values())
+
+    def confirm_ea_action(
+        self,
+        action_id: str,
+        success: bool,
+        ticket: int = 0,
+        price: float = 0.0,
+        lot: float = 0.0,
+        error: str = ""
+    ) -> None:
+        """Called when remote MQL5 EA confirms execution of an action."""
+        self._action_results[action_id] = {
+            "success": success,
+            "ticket": ticket,
+            "price": price,
+            "lot": lot,
+            "error": error,
+            "timestamp": time.time()
+        }
+        # Remove from pending queue
+        self._pending_ea_actions.pop(action_id, None)
+        logger.info(f"Confirmed EA Action [{action_id}]: Success={success}, Ticket=#{ticket}, Price={price}")
+
+    def get_pending_ea_actions(self) -> List[Dict[str, Any]]:
+        """Returns all actions currently awaiting execution by MT5 EA."""
+        return list(self._pending_ea_actions.values())
+
     def initialize(self) -> bool:
         if not MT5_AVAILABLE:
-            logger.info("MT5 native module missing. Operating in high-performance Simulator mode.")
+            logger.info("MT5 native module missing. Operating in EA Bridge / Simulator mode.")
             self.is_connected = True
             return True
 
@@ -57,7 +168,6 @@ class MT5Bridge:
 
             # Select symbol
             if not mt5.symbol_select(self.symbol, True):
-                # Try fallback standard symbol if suffix missing (e.g. XAUUSD instead of XAUUSDm)
                 alt_sym = "XAUUSD" if self.symbol.endswith("m") else f"{self.symbol}m"
                 if mt5.symbol_select(alt_sym, True):
                     self.symbol = alt_sym
@@ -73,7 +183,11 @@ class MT5Bridge:
             logger.error(f"Error during MT5 initialization: {e}")
             return False
 
-    def get_account_info(self) -> Dict[str, float]:
+    def get_account_info(self) -> Dict[str, Any]:
+        """Returns account info with priority to connected MT5 EA, then native, then simulator."""
+        if self.is_ea_connected() and self._ea_account_info:
+            return self._ea_account_info
+
         if MT5_AVAILABLE and self.is_connected:
             try:
                 info = mt5.account_info()
@@ -131,6 +245,11 @@ class MT5Bridge:
         Returns real-time live market price formatted with Exness 3-decimal precision:
         e.g. Bid: 4391.116, Ask: 4391.376 (standard ~0.260 spread).
         """
+        # Priority 1: Live Exness MT5 EA quote
+        if self.is_ea_connected() and self._ea_quotes and (time.time() - self._ea_last_seen < 10.0):
+            return self._ea_quotes
+
+        # Priority 2: Native MT5 tick
         if MT5_AVAILABLE and self.is_connected:
             try:
                 tick = mt5.symbol_info_tick(self.symbol)
@@ -142,7 +261,7 @@ class MT5Bridge:
             except Exception as e:
                 logger.warning(f"Failed to get live MT5 tick: {e}")
 
-        # Real-time live market feed for Linux / Bridge mode
+        # Priority 3: Real-time live market feed (Binance PAXGUSDT) for Linux / Bridge mode
         now = time.time()
         if now - self._last_price_time < 2.0 and self._last_price:
             return self._last_price
@@ -160,7 +279,7 @@ class MT5Bridge:
                 market_ask = float(data["askPrice"])
                 mid = (market_bid + market_ask) / 2.0
 
-                # Exness Gold typical spread is 0.260 points (26 pips) with 3 decimals
+                # Exness Gold typical spread is 0.260 points with 3 decimals
                 bid = round(mid - 0.130, 3)
                 ask = round(mid + 0.130, 3)
                 mid_rounded = round(mid, 3)
@@ -170,7 +289,6 @@ class MT5Bridge:
                 return self._last_price
         except Exception as err:
             logger.debug(f"Live market price fetcher fallback: {err}")
-            # Micro dynamic jitter around previous price if network hiccup
             import random
             jitter = round(random.uniform(-0.025, 0.025), 3)
             current_mid = round(self._last_price.get("mid", 4391.246) + jitter, 3)
@@ -193,18 +311,76 @@ class MT5Bridge:
         comment: str = "RTB v2.0"
     ) -> Dict[str, Any]:
         """
-        Executes order on Exness MT5 with multi-filling mode fallback.
-        Supports Market and Limit orders.
+        Executes order on Exness MT5.
+        Routes to connected MQL5 EA first, then native MT5, then simulated fallback.
         """
         lot = round(float(lot), 2)
         price = round(float(price), 2)
         sl = round(float(sl), 2) if sl else 0.0
         tp = round(float(tp), 2) if tp else 0.0
+        status = "PENDING" if "LIMIT" in order_type.upper() else "OPEN"
 
+        # 1. Remote Exness MT5 EA Mode
+        if self.is_ea_connected():
+            action_id = f"act_{int(time.time()*1000)}_{self._action_counter}"
+            self._action_counter += 1
+            action_data = {
+                "action_id": action_id,
+                "type": "OPEN_ORDER",
+                "symbol": self.symbol,
+                "action": action,
+                "order_type": order_type,
+                "price": price,
+                "lot": lot,
+                "sl": sl,
+                "tp": tp,
+                "comment": comment,
+                "ticket": 0,
+                "created_at": time.time()
+            }
+            self._pending_ea_actions[action_id] = action_data
+            logger.info(f"📡 Dispatched order action {action_id} to connected Exness MT5 EA: {action} {order_type} {lot} lots @ {price}")
+
+            # Wait synchronously up to 3.5 seconds for EA confirmation
+            t_start = time.time()
+            while time.time() - t_start < 3.5:
+                if action_id in self._action_results:
+                    res = self._action_results.pop(action_id)
+                    if res.get("success"):
+                        ticket = int(res.get("ticket") or self._simulated_ticket_counter)
+                        exec_price = float(res.get("price") or price)
+                        logger.info(f"🟢 Exness MT5 EA confirmed order execution! Ticket #{ticket} @ {exec_price}")
+                        return {
+                            "success": True,
+                            "ticket": ticket,
+                            "price": exec_price,
+                            "lot": lot,
+                            "order_type": order_type,
+                            "status": status,
+                            "comment": "Exness EA Executed"
+                        }
+                    else:
+                        logger.error(f"❌ Exness MT5 EA failed to execute order: {res.get('error')}")
+                        return {"success": False, "error": res.get("error", "EA Execution Failed")}
+                time.sleep(0.05)
+
+            logger.warning(f"⚠️ EA action {action_id} wait timed out after 3.5s. Action remains queued for next EA cycle.")
+            self._simulated_ticket_counter += 1
+            ticket = self._simulated_ticket_counter
+            return {
+                "success": True,
+                "ticket": ticket,
+                "price": price,
+                "lot": lot,
+                "order_type": order_type,
+                "status": status,
+                "comment": "EA Queued (Awaiting Execution)"
+            }
+
+        # 2. Simulator Fallback if MT5 native not available
         if not MT5_AVAILABLE or not self.is_connected:
             self._simulated_ticket_counter += 1
             ticket = self._simulated_ticket_counter
-            status = "PENDING" if "LIMIT" in order_type.upper() else "OPEN"
             self._simulated_positions[ticket] = {
                 "ticket": ticket,
                 "action": action,
@@ -232,7 +408,7 @@ class MT5Bridge:
                 "comment": "Simulated Execution"
             }
 
-        # Determine MT5 order constants
+        # 3. Native MT5 Execution
         is_limit = "LIMIT" in order_type.upper()
         if is_limit:
             mt5_action = mt5.TRADE_ACTION_PENDING
@@ -241,7 +417,6 @@ class MT5Bridge:
             mt5_action = mt5.TRADE_ACTION_DEAL
             mt5_type = mt5.ORDER_TYPE_BUY if action == "BUY" else mt5.ORDER_TYPE_SELL
 
-        # Exness filling modes fallback order: IOC -> FOK -> RETURN
         filling_modes = [
             getattr(mt5, "ORDER_FILLING_IOC", 1),
             getattr(mt5, "ORDER_FILLING_FOK", 0),
@@ -278,23 +453,35 @@ class MT5Bridge:
                         "price": float(result.price),
                         "lot": lot,
                         "order_type": order_type,
+                        "status": status,
                         "comment": "Order Send Done"
                     }
                 else:
                     last_comment = result.comment if result else "Unknown error"
-                    logger.debug(f"Filling mode {filling_mode} rejected: {last_comment}. Trying next mode...")
             except Exception as e:
                 last_comment = str(e)
 
-        logger.error(f"❌ MT5 Order execution failed after trying all filling modes: {last_comment}")
+        logger.error(f"❌ MT5 Order execution failed: {last_comment}")
         return {"success": False, "error": last_comment}
 
     def modify_sl(self, ticket: int, new_sl: float) -> bool:
-        """Convenience method to modify Stop Loss."""
         return self.modify_sl_tp(ticket, new_sl=new_sl)
 
     def modify_sl_tp(self, ticket: int, new_sl: Optional[float] = None, new_tp: Optional[float] = None) -> bool:
-        """Modifies Stop Loss and/or Take Profit on an open position or pending order."""
+        if self.is_ea_connected():
+            action_id = f"mod_{int(time.time()*1000)}_{self._action_counter}"
+            self._action_counter += 1
+            self._pending_ea_actions[action_id] = {
+                "action_id": action_id,
+                "type": "MODIFY_ORDER",
+                "ticket": ticket,
+                "sl": round(new_sl, 2) if new_sl is not None else 0.0,
+                "tp": round(new_tp, 2) if new_tp is not None else 0.0,
+                "symbol": self.symbol,
+                "created_at": time.time()
+            }
+            return True
+
         if not MT5_AVAILABLE or not self.is_connected:
             if ticket in self._simulated_positions:
                 if new_sl is not None:
@@ -322,24 +509,43 @@ class MT5Bridge:
                 "tp": target_tp
             }
             res = mt5.order_send(request)
-            if res and res.retcode == mt5.TRADE_RETCODE_DONE:
-                logger.info(f"Position #{ticket} SL/TP updated -> SL: {target_sl}, TP: {target_tp}")
-                return True
-            else:
-                logger.error(f"Failed to modify SL/TP for #{ticket}: {res.comment if res else 'Unknown'}")
-                return False
+            return bool(res and res.retcode == mt5.TRADE_RETCODE_DONE)
         except Exception as e:
             logger.error(f"Error modifying SL/TP: {e}")
             return False
 
     def close_position(self, ticket: int, lot: Optional[float] = None) -> Dict[str, Any]:
-        """
-        Closes an open position on MT5.
-        If lot is provided, executes partial close; otherwise closes full volume.
-        """
+        """Closes an open position on MT5 (via EA, Native, or Simulator)."""
+        if self.is_ea_connected():
+            action_id = f"close_{int(time.time()*1000)}_{self._action_counter}"
+            self._action_counter += 1
+            self._pending_ea_actions[action_id] = {
+                "action_id": action_id,
+                "type": "CLOSE_ORDER",
+                "ticket": ticket,
+                "lot": lot or 0.0,
+                "symbol": self.symbol,
+                "created_at": time.time()
+            }
+            logger.info(f"📡 Dispatched close action {action_id} to EA for ticket #{ticket}")
+
+            t_start = time.time()
+            while time.time() - t_start < 3.5:
+                if action_id in self._action_results:
+                    res = self._action_results.pop(action_id)
+                    if res.get("success"):
+                        logger.info(f"🟢 Exness MT5 EA closed position #{ticket} successfully!")
+                        return {"success": True, "ticket": ticket, "close_price": res.get("price", 0.0), "lot": lot}
+                    else:
+                        return {"success": False, "error": res.get("error", "EA Close Failed")}
+                time.sleep(0.05)
+
+            logger.warning(f"EA close action {action_id} timed out. Proceeding.")
+            return {"success": True, "ticket": ticket, "close_price": 0.0, "lot": lot}
+
         if not MT5_AVAILABLE or not self.is_connected:
             pos = self._simulated_positions.pop(ticket, None)
-            close_price = 2655.0
+            close_price = self.get_current_price()["mid"]
             close_lot = lot or (pos.get("lot") if pos else 0.01)
             logger.info(f"[SIMULATOR] Position #{ticket} closed ({close_lot} lots @ {close_price})")
             return {"success": True, "ticket": ticket, "close_price": close_price, "lot": close_lot}
@@ -385,6 +591,18 @@ class MT5Bridge:
 
     def cancel_order(self, ticket: int) -> bool:
         """Cancels a pending limit order on MT5."""
+        if self.is_ea_connected():
+            action_id = f"cancel_{int(time.time()*1000)}_{self._action_counter}"
+            self._action_counter += 1
+            self._pending_ea_actions[action_id] = {
+                "action_id": action_id,
+                "type": "CANCEL_ORDER",
+                "ticket": ticket,
+                "symbol": self.symbol,
+                "created_at": time.time()
+            }
+            return True
+
         if not MT5_AVAILABLE or not self.is_connected:
             self._simulated_positions.pop(ticket, None)
             logger.info(f"[SIMULATOR] Order #{ticket} cancelled.")
@@ -403,6 +621,9 @@ class MT5Bridge:
 
     def get_open_positions(self) -> List[Dict[str, Any]]:
         """Returns all open positions and pending limit orders for the monitored symbol."""
+        if self.is_ea_connected() and self._ea_positions:
+            return self._ea_positions
+
         if not MT5_AVAILABLE or not self.is_connected:
             price_info = self.get_current_price()
             cur_price = price_info["mid"]
@@ -415,7 +636,6 @@ class MT5Bridge:
                 order_type = p.get("order_type", "MARKET")
                 status = p.get("status", "OPEN")
 
-                # If pending limit order, check if market price has reached/filled it
                 if status == "PENDING":
                     if (not is_buy and cur_price >= entry) or (is_buy and cur_price <= entry):
                         p["status"] = "OPEN"
@@ -453,12 +673,16 @@ class MT5Bridge:
                 result.append({
                     "ticket": p.ticket,
                     "direction": "BUY" if p.type == mt5.ORDER_TYPE_BUY else "SELL",
+                    "action": "BUY" if p.type == mt5.ORDER_TYPE_BUY else "SELL",
+                    "order_type": "MARKET",
                     "price_open": p.price_open,
+                    "open_price": p.price_open,
                     "price_current": p.price_current,
                     "sl": p.sl,
                     "tp": p.tp,
                     "lot": p.volume,
-                    "profit": p.profit
+                    "profit": p.profit,
+                    "status": "OPEN"
                 })
             return result
         except Exception as e:
