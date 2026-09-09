@@ -1,3 +1,4 @@
+import aiosqlite
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types, F
@@ -99,6 +100,73 @@ async def start_cmd(message: types.Message):
     )
     await message.answer(welcome_text, reply_markup=get_app_keyboard(), parse_mode="HTML")
     logger.info(f"🚀 Sent welcome message with Mini App keyboard to Admin {user_id}")
+
+
+@dp.message(Command("channels"))
+async def channels_cmd(message: types.Message):
+    if not is_admin(message.from_user.id if message.from_user else None):
+        return
+    channels = await db.get_active_channels()
+    if not channels:
+        await message.answer(
+            "📡 <b>Hozircha kuzatilayotgan kanallar yo'q.</b>\n\n"
+            "Yangi kanal qo'shish uchun:\n"
+            "1. Mini App ichidagi <b>'Kanal qo'shish'</b> tugmasidan foydalaning, yoki\n"
+            "2. Botga quyidagi buyruqni yuboring:\n"
+            "<code>/addchannel @kanal_nomi Kanal Sarlavhasi</code>",
+            parse_mode="HTML"
+        )
+        return
+    text = f"📡 <b>Kuzatilayotgan kanallar ({len(channels)} ta):</b>\n\n"
+    for ch in channels:
+        text += f"• <b>{ch.get('title') or ch.get('channel_id')}</b> (<code>{ch.get('channel_id')}</code>) | Og'irlik: {ch.get('weight', 1.5)}\n"
+    await message.answer(text, parse_mode="HTML")
+
+
+@dp.message(Command("addchannel"))
+async def addchannel_cmd(message: types.Message):
+    if not is_admin(message.from_user.id if message.from_user else None):
+        return
+    parts = (message.text or "").split(maxsplit=2)
+    if len(parts) < 2:
+        await message.answer(
+            "⚠️ <b>Format:</b> <code>/addchannel &lt;id_yoki_username&gt; &lt;nomi&gt;</code>\n"
+            "Misol: <code>/addchannel @trader_stage TraderStage VIP</code>",
+            parse_mode="HTML"
+        )
+        return
+    ch_id = parts[1].strip()
+    title = parts[2].strip() if len(parts) > 2 else ch_id
+    await db.add_channel(channel_id=ch_id, title=title)
+    await message.answer(
+        f"✅ <b>Kanal muvaffaqiyatli qo'shildi!</b>\n\n"
+        f"• Kanal: <code>{ch_id}</code>\n"
+        f"• Nomi: <b>{title}</b>\n\n"
+        f"Userbot ushbu kanaldan kelgan XAUUSD signallarini avtomatik tahlil qiladi.",
+        parse_mode="HTML"
+    )
+
+
+@dp.message(Command("cleardata"))
+async def cleardata_cmd(message: types.Message):
+    if not is_admin(message.from_user.id if message.from_user else None):
+        return
+    async with aiosqlite.connect(db.db_path) as conn:
+        await conn.execute("DELETE FROM trades")
+        await conn.execute("DELETE FROM signals")
+        await conn.execute("DELETE FROM channels")
+        try:
+            await conn.execute("DELETE FROM sqlite_sequence WHERE name IN ('trades', 'signals', 'channels')")
+        except Exception:
+            pass
+        await conn.commit()
+    mt5_bridge._simulated_positions.clear()
+    await message.answer(
+        "🧹 <b>Barcha tarix, signallar, demo savdolar va kanallar to'liq tozalandi!</b>\n\n"
+        "Tizim 100% toza holatda ishga tushirildi. Yangi kanallarni Mini App yoki <code>/addchannel</code> orqali qo'shishingiz mumkin.",
+        reply_markup=get_app_keyboard(),
+        parse_mode="HTML"
+    )
 
 
 
