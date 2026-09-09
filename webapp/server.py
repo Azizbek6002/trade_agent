@@ -56,6 +56,18 @@ async def verify_admin_access(request: Request, call_next):
             )
 
     response = await call_next(request)
+    if config.NGROK_DOMAIN:
+        try:
+            response.set_cookie(
+                key="abuse_interstitial",
+                value=config.NGROK_DOMAIN,
+                max_age=604800,
+                path="/",
+                samesite="none",
+                secure=True
+            )
+        except Exception:
+            pass
     return response
 
 

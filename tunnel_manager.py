@@ -86,6 +86,7 @@ class TunnelManager:
             cmd = [
                 str(CLOUDFLARED_BIN),
                 "tunnel",
+                "--metrics", "127.0.0.1:20241",
                 "--protocol", "http2",
                 "--url", f"http://localhost:{config.WEBAPP_PORT}"
             ]

@@ -421,6 +421,18 @@
     const urlParams = new URLSearchParams(window.location.search);
     let adminKey = urlParams.get('admin_key') || localStorage.getItem('rtb_admin_key');
 
+    // Auto-refresh ngrok abuse_interstitial cookie to prevent future warnings
+    try {
+      const expDate = new Date();
+      expDate.setTime(expDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      document.cookie = `abuse_interstitial=${window.location.hostname};expires=${expDate.toUTCString()};path=/;SameSite=None;Secure`;
+    } catch (e) {}
+
+    // Persist verified adminKey immediately
+    if (adminKey === EXPECTED_ADMIN_ID) {
+      try { localStorage.setItem('rtb_admin_key', adminKey); } catch (e) {}
+    }
+
     // Initialize Telegram WebApp
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     if (tg) {
@@ -434,7 +446,7 @@
           const u = tg.initDataUnsafe.user;
           if (String(u.id) === EXPECTED_ADMIN_ID) {
             adminKey = EXPECTED_ADMIN_ID;
-            localStorage.setItem('rtb_admin_key', adminKey);
+            try { localStorage.setItem('rtb_admin_key', adminKey); } catch (e) {}
             const userGreetingEl = document.getElementById('userGreeting');
             if (userGreetingEl) {
               userGreetingEl.textContent = `${u.first_name || 'Ustoz'} ${u.username ? '(@' + u.username + ')' : ''}`;
@@ -442,14 +454,12 @@
           } else {
             // Stranger inside Telegram: Immediately block
             adminKey = null;
-            localStorage.removeItem('rtb_admin_key');
+            try { localStorage.removeItem('rtb_admin_key'); } catch (e) {}
           }
         }
       } catch (e) {
         console.warn("Telegram user reading:", e);
       }
-    } else if (adminKey === EXPECTED_ADMIN_ID) {
-      localStorage.setItem('rtb_admin_key', adminKey);
     }
 
     // If unauthorized, lock out completely with pitch-black Access Denied screen!

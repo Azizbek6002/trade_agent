@@ -15,11 +15,12 @@ dp = Dispatcher()
 
 
 def get_app_keyboard() -> InlineKeyboardMarkup:
-    """Returns clean single Web App button for authorized admin."""
+    """Returns dual Web App and Browser buttons for authorized admin."""
     if config.WEBAPP_URL.startswith("https://"):
         admin_url = f"{config.WEBAPP_URL}?admin_key={config.ADMIN_TELEGRAM_ID}"
         return InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🚀 RTB MINI APP'NI OCHISH", web_app=WebAppInfo(url=admin_url))]
+            [InlineKeyboardButton(text="🚀 RTB MINI APP (Ilova ichida)", web_app=WebAppInfo(url=admin_url))],
+            [InlineKeyboardButton(text="🌐 BRAUZERDA OCHISH (To'liq ekran)", url=admin_url)]
         ])
     else:
         return InlineKeyboardMarkup(inline_keyboard=[
@@ -90,11 +91,14 @@ async def start_cmd(message: types.Message):
         except Exception as e:
             logger.warning(f"Could not set chat menu button: {e}")
 
+    admin_url = f"{config.WEBAPP_URL}?admin_key={config.ADMIN_TELEGRAM_ID}"
     welcome_text = (
         "🤖 <b>ROBO TRADER BOY (RTB) v2.0 — XAUUSD AI SYSTEM</b>\n\n"
         "Assalomu alaykum ustoz! Barcha boshqaruv paneli, real vaqt bozori, "
         "statistika, risk sozlamalari va AI chat endi yagona <b>RTB Mini App</b> ichida mujassam.\n\n"
-        "👇 Pastdagi tugmani bosing va tizimni to'liq boshqaring:"
+        f"📱 <b>Doimiy havola:</b>\n<code>{admin_url}</code>\n\n"
+        "👇 Pastdagi tugmalardan birini tanlab kiring:\n"
+        "<i>(💡 Eslatma: Agar birinchi kirganingizda Ngrok xavfsizlik sahifasi chiqsa, pastdagi 'Visit Site' tugmasini 1 marta bosing)</i>"
     )
     await message.answer(welcome_text, reply_markup=get_app_keyboard(), parse_mode="HTML")
     logger.info(f"🚀 Sent welcome message with Mini App keyboard to Admin {user_id}")
