@@ -55,22 +55,30 @@ async def local_app_info_handler(callback: types.CallbackQuery):
     )
 
 
-@dp.message(CommandStart())
-@dp.message(Command("app", "webapp"))
+@dp.message(Command(commands=["start", "app", "webapp"]))
 async def start_cmd(message: types.Message):
     user_id = message.from_user.id if message.from_user else None
+    user_name = message.from_user.full_name if message.from_user else "Unknown"
+    logger.info(f"📨 [START] Received command from user_id: {user_id} ({user_name})")
+
     if not is_admin(user_id):
+        logger.warning(f"⛔ Unauthorized /start attempt from user_id: {user_id} (Admin ID: {config.ADMIN_TELEGRAM_ID})")
         try:
-            # Explicitly clear Menu Button for strangers so they cannot access Mini App
             await message.bot.set_chat_menu_button(
                 chat_id=message.chat.id,
                 menu_button=MenuButtonDefault()
             )
         except Exception:
             pass
-        await message.answer(DENIED_MESSAGE, parse_mode="HTML")
+        denied_msg = (
+            f"❌ <b>Kechirasiz, siz bundan foydalana olmaysiz!</b>\n"
+            f"Sizning Telegram ID: <code>{user_id}</code>\n\n"
+            f"Ruxsat olish uchun @coder_zik ga murojaat qiling."
+        )
+        await message.answer(denied_msg, parse_mode="HTML")
         return
 
+    logger.info(f"✅ Admin {user_id} authorized! Configuring Menu Button & sending Mini App link...")
     # For admin: ensure web app menu button is set for admin's chat
     if config.WEBAPP_URL.startswith("https://"):
         try:
@@ -79,8 +87,8 @@ async def start_cmd(message: types.Message):
                 chat_id=message.chat.id,
                 menu_button=MenuButtonWebApp(text="RTB App", web_app=WebAppInfo(url=admin_url))
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not set chat menu button: {e}")
 
     welcome_text = (
         "🤖 <b>ROBO TRADER BOY (RTB) v2.0 — XAUUSD AI SYSTEM</b>\n\n"
@@ -89,6 +97,8 @@ async def start_cmd(message: types.Message):
         "👇 Pastdagi tugmani bosing va tizimni to'liq boshqaring:"
     )
     await message.answer(welcome_text, reply_markup=get_app_keyboard(), parse_mode="HTML")
+    logger.info(f"🚀 Sent welcome message with Mini App keyboard to Admin {user_id}")
+
 
 
 @dp.message(F.text)
@@ -178,7 +188,9 @@ async def start_bot():
         return
 
     logger.info("Starting Robo Trader Boy (RTB) v2.0 Telegram Bot (Pure Mini App Bridge)...")
-    bot = Bot(token=config.TELEGRAM_BOT_TOKEN)
+    from aiogram.client.session.aiohttp import AiohttpSession
+    session = AiohttpSession(timeout=45.0)
+    bot = Bot(token=config.TELEGRAM_BOT_TOKEN, session=session)
 
     # 1. Start Tunnel Watchdog in background
     from tunnel_manager import tunnel_manager
@@ -211,11 +223,12 @@ async def start_bot():
                 except Exception as e:
                     logger.warning(f"Could not set Telegram Menu Button for admin: {e}")
 
-            logger.info("Starting dp.start_polling(bot)...")
-            await dp.start_polling(bot, handle_signals=False)
+            logger.info("Starting dp.start_polling(bot, polling_timeout=15)...")
+            await dp.start_polling(bot, polling_timeout=15, handle_signals=False)
             logger.info("dp.start_polling finished cleanly.")
             break
         except Exception as e:
             logger.error(f"Telegram Bot network/polling error: {e}. Reconnecting in 5s...")
             await asyncio.sleep(5)
+
 
