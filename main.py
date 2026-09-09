@@ -75,3 +75,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("XAUUSD AI Trading System stopped.")
+    except Exception as e:
+        logger.critical(f"FATAL: Main system encountered unhandled error: {e}", exc_info=True)
+

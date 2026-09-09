@@ -86,12 +86,14 @@ class EconomicCalendarFilter:
                                             fetched_events.append(event)
                                     if fetched_events:
                                         self.cached_events = fetched_events
-                                        self.last_fetch = now
                                         break
                     except Exception:
                         continue
+            self.last_fetch = now
         except Exception as e:
+            self.last_fetch = now
             logger.debug(f"Calendar fetch notice: {e}. Using cached and manual events.")
+
 
         return self.cached_events + self._manual_events
 

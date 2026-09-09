@@ -63,7 +63,7 @@ start_all() {
     TUNNEL_PID=$(get_tunnel_pid)
     if [ -z "$TUNNEL_PID" ]; then
         echo -e "${YELLOW}⏳ Cloudflare xavfsiz tunneli ishga tushirilmoqda...${RESET}"
-        nohup ./cloudflared tunnel --url http://localhost:8000 > "$TUNNEL_LOG" 2>&1 &
+        nohup ./cloudflared tunnel --protocol http2 --url http://localhost:8000 > "$TUNNEL_LOG" 2>&1 &
         TUNNEL_PID=$!
         echo "$TUNNEL_PID" > "$TUNNEL_PID_FILE"
         
@@ -167,8 +167,9 @@ status_all() {
 
     echo -e "${CYAN}------------------------------------------------------${RESET}"
     # Live API status check
-    if curl -s "http://127.0.0.1:8000/api/status?admin_key=7266764356" > /tmp/rtb_status.json 2>/dev/null; then
+    if curl -s --max-time 5 "http://127.0.0.1:8000/api/status?admin_key=7266764356" > /tmp/rtb_status.json 2>/dev/null; then
         BAL=$(python3 -c "import json; d=json.load(open('/tmp/rtb_status.json')); print(d.get('account',{}).get('balance','0'))" 2>/dev/null || echo "N/A")
+
         EQ=$(python3 -c "import json; d=json.load(open('/tmp/rtb_status.json')); print(d.get('account',{}).get('equity','0'))" 2>/dev/null || echo "N/A")
         ACC=$(python3 -c "import json; d=json.load(open('/tmp/rtb_status.json')); print(d.get('account',{}).get('account','N/A'))" 2>/dev/null || echo "N/A")
         EA_CONN=$(python3 -c "import json; d=json.load(open('/tmp/rtb_status.json')); print('ULANGAN 🟢' if d.get('ea_bridge',{}).get('connected') else 'OFLAYN 🟡')" 2>/dev/null || echo "N/A")

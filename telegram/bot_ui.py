@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command
@@ -172,28 +173,49 @@ async def handle_direct_messages(message: types.Message):
 
 
 async def start_bot():
-    if config.TELEGRAM_BOT_TOKEN:
-        logger.info("Starting Robo Trader Boy (RTB) v2.0 Telegram Bot (Pure Mini App Bridge)...")
-        bot = Bot(token=config.TELEGRAM_BOT_TOKEN)
-        await bot.delete_webhook(drop_pending_updates=True)
+    if not config.TELEGRAM_BOT_TOKEN:
+        logger.warning("TELEGRAM_BOT_TOKEN not provided. Bot UI paused.")
+        return
 
-        # 1. Reset GLOBAL default menu button so strangers/non-admins never see the Web App button
+    logger.info("Starting Robo Trader Boy (RTB) v2.0 Telegram Bot (Pure Mini App Bridge)...")
+    bot = Bot(token=config.TELEGRAM_BOT_TOKEN)
+
+    # 1. Start Tunnel Watchdog in background
+    from tunnel_manager import tunnel_manager
+    asyncio.create_task(tunnel_manager.start_watchdog(bot))
+
+    # 2. Resilient Polling Loop (auto-reconnects on network loss / wake from sleep)
+    while True:
         try:
-            await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
-            logger.info("Global Telegram Menu Button reset to Default (restricted for strangers).")
-        except Exception as e:
-            logger.warning(f"Could not reset global menu button: {e}")
-
-        # 2. Configure Menu Button EXCLUSIVELY for the admin
-        if config.ADMIN_TELEGRAM_ID and config.WEBAPP_URL.startswith("https://"):
+            # Clean old webhooks
             try:
-                admin_url = f"{config.WEBAPP_URL}?admin_key={config.ADMIN_TELEGRAM_ID}"
-                await bot.set_chat_menu_button(
-                    chat_id=config.ADMIN_TELEGRAM_ID,
-                    menu_button=MenuButtonWebApp(text="RTB App", web_app=WebAppInfo(url=admin_url))
-                )
-                logger.info(f"Menu Button set exclusively for Admin {config.ADMIN_TELEGRAM_ID}")
+                await bot.delete_webhook(drop_pending_updates=True)
             except Exception as e:
-                logger.warning(f"Could not set Telegram Menu Button for admin: {e}")
+                logger.warning(f"Webhook cleanup notice (will retry): {e}")
 
-        await dp.start_polling(bot)
+            # Reset GLOBAL default menu button so strangers cannot access Mini App
+            try:
+                await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+            except Exception as e:
+                logger.warning(f"Could not reset global menu button: {e}")
+
+            # Configure Menu Button EXCLUSIVELY for the admin
+            if config.ADMIN_TELEGRAM_ID and config.WEBAPP_URL.startswith("https://"):
+                try:
+                    admin_url = f"{config.WEBAPP_URL}?admin_key={config.ADMIN_TELEGRAM_ID}"
+                    await bot.set_chat_menu_button(
+                        chat_id=config.ADMIN_TELEGRAM_ID,
+                        menu_button=MenuButtonWebApp(text="RTB App", web_app=WebAppInfo(url=admin_url))
+                    )
+                    logger.info(f"Menu Button set exclusively for Admin {config.ADMIN_TELEGRAM_ID}")
+                except Exception as e:
+                    logger.warning(f"Could not set Telegram Menu Button for admin: {e}")
+
+            logger.info("Starting dp.start_polling(bot)...")
+            await dp.start_polling(bot, handle_signals=False)
+            logger.info("dp.start_polling finished cleanly.")
+            break
+        except Exception as e:
+            logger.error(f"Telegram Bot network/polling error: {e}. Reconnecting in 5s...")
+            await asyncio.sleep(5)
+
