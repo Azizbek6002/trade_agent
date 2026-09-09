@@ -21,8 +21,11 @@ data/*.db-journal
 data/*.log
 *.log
 
-# Cloudflared Binary
+# Tunnel Binaries
 cloudflared
+ngrok
+data/run/
+
 
 # Python cache & bytecode
 __pycache__/

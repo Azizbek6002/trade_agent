@@ -1,8 +1,10 @@
 import asyncio
+import json
 import logging
 import os
 import re
 import subprocess
+import urllib.request
 from pathlib import Path
 from config import config, BASE_DIR
 
@@ -10,73 +12,102 @@ logger = logging.getLogger(__name__)
 
 TUNNEL_LOG = BASE_DIR / "logs" / "tunnel.log"
 CLOUDFLARED_BIN = BASE_DIR / "cloudflared"
+NGROK_BIN = BASE_DIR / "ngrok"
+
 
 class TunnelManager:
     """
-    Self-Healing Tunnel Watchdog.
-    Keeps the Cloudflare HTTP/2 tunnel alive 24/7.
-    If the tunnel disconnects or URL expires, automatically restarts it,
-    extracts the new URL, updates .env, and refreshes the Telegram Bot menu button.
+    Self-Healing Tunnel Watchdog (RTB v2.0).
+    Supports:
+    1. Ngrok Permanent Static Domain (Zero downtime, fixed URL forever).
+    2. Cloudflare HTTP/2 Quick Tunnel (Fallback).
     """
 
     def __init__(self):
+        self.provider = config.TUNNEL_PROVIDER
         self.current_url = config.WEBAPP_URL
         self._process = None
 
     def get_running_tunnel_pid(self) -> int | None:
         try:
-            out = subprocess.check_output(["pgrep", "-f", "cloudflared.*tunnel"], text=True)
+            pattern = "ngrok.*http" if self.provider == "ngrok" else "cloudflared.*tunnel"
+            out = subprocess.check_output(["pgrep", "-f", pattern], text=True)
             pids = [int(p) for p in out.strip().split() if p]
             return pids[0] if pids else None
         except Exception:
             return None
 
-    def start_tunnel_process(self) -> str | None:
-        """Starts cloudflared with http2 protocol and returns the generated URL."""
-        if not CLOUDFLARED_BIN.exists():
-            logger.warning(f"cloudflared binary not found at {CLOUDFLARED_BIN}")
-            return None
-
-        # Terminate any existing stalled cloudflared processes
-        pid = self.get_running_tunnel_pid()
-        if pid:
+    def kill_stale_tunnels(self):
+        for pattern in ["ngrok", "cloudflared"]:
             try:
-                os.kill(pid, 9)
+                out = subprocess.check_output(["pgrep", "-f", pattern], text=True)
+                for pid_str in out.strip().split():
+                    if pid_str:
+                        try:
+                            os.kill(int(pid_str), 9)
+                        except Exception:
+                            pass
             except Exception:
                 pass
 
+    def start_tunnel_process(self) -> str | None:
+        """Starts either Ngrok or Cloudflare tunnel according to configuration."""
+        self.kill_stale_tunnels()
         TUNNEL_LOG.parent.mkdir(parents=True, exist_ok=True)
-        # Empty old tunnel log
         with open(TUNNEL_LOG, "w") as f:
             f.write("")
 
-        cmd = [
-            str(CLOUDFLARED_BIN),
-            "tunnel",
-            "--protocol", "http2",
-            "--url", f"http://localhost:{config.WEBAPP_PORT}"
-        ]
-
-        logger.info("Starting Cloudflare HTTP/2 Tunnel daemon...")
-        with open(TUNNEL_LOG, "a") as out:
-            self._process = subprocess.Popen(
-                cmd,
-                stdout=out,
-                stderr=out,
-                start_new_session=True
-            )
-
-        # Wait for URL to appear in log
-        for _ in range(15):
+        # 1. Prefer Ngrok Permanent Domain if configured
+        if self.provider == "ngrok" and config.NGROK_DOMAIN and NGROK_BIN.exists():
+            fixed_url = f"https://{config.NGROK_DOMAIN}"
+            cmd = [
+                str(NGROK_BIN),
+                "http",
+                str(config.WEBAPP_PORT),
+                f"--url={fixed_url}",
+                "--log=stdout"
+            ]
+            logger.info(f"Starting Ngrok permanent static tunnel ({fixed_url})...")
+            with open(TUNNEL_LOG, "a") as out:
+                self._process = subprocess.Popen(
+                    cmd,
+                    stdout=out,
+                    stderr=out,
+                    start_new_session=True
+                )
             import time
-            time.sleep(1)
-            url = self.extract_url_from_log()
-            if url:
-                self.update_env_url(url)
-                logger.info(f"🟢 Cloudflare Tunnel online: {url}")
-                return url
+            time.sleep(2)
+            self.update_env_url(fixed_url)
+            logger.info(f"🟢 Ngrok Permanent Static Tunnel online: {fixed_url}")
+            return fixed_url
 
-        logger.warning("Tunnel started but URL extraction timed out.")
+        # 2. Fallback to Cloudflare HTTP/2
+        if CLOUDFLARED_BIN.exists():
+            cmd = [
+                str(CLOUDFLARED_BIN),
+                "tunnel",
+                "--protocol", "http2",
+                "--url", f"http://localhost:{config.WEBAPP_PORT}"
+            ]
+            logger.info("Starting Cloudflare HTTP/2 Tunnel daemon...")
+            with open(TUNNEL_LOG, "a") as out:
+                self._process = subprocess.Popen(
+                    cmd,
+                    stdout=out,
+                    stderr=out,
+                    start_new_session=True
+                )
+
+            for _ in range(15):
+                import time
+                time.sleep(1)
+                url = self.extract_url_from_log()
+                if url:
+                    self.update_env_url(url)
+                    logger.info(f"🟢 Cloudflare Tunnel online: {url}")
+                    return url
+
+        logger.warning("Tunnel start timed out.")
         return None
 
     def extract_url_from_log(self) -> str | None:
@@ -119,42 +150,48 @@ class TunnelManager:
                 chat_id=config.ADMIN_TELEGRAM_ID,
                 menu_button=MenuButtonWebApp(text="RTB App", web_app=WebAppInfo(url=admin_url))
             )
-            logger.info("Refreshed Admin Telegram Menu Button with active tunnel URL.")
+            logger.info(f"Refreshed Admin Telegram Menu Button with {admin_url}")
         except Exception as e:
             logger.warning(f"Could not update Telegram menu button: {e}")
 
     async def check_tunnel_healthy(self) -> bool:
-        """
-        Directly checks local cloudflared metrics endpoint (127.0.0.1:20241/ready).
-        Returns True if cloudflared is connected to Cloudflare Edge with ready connections.
-        """
-        import json
-        import urllib.request
-        try:
-            loop = asyncio.get_running_loop()
-            def _check():
-                req = urllib.request.Request("http://127.0.0.1:20241/ready", headers={"User-Agent": "RTB-Watchdog"})
-                with urllib.request.urlopen(req, timeout=3.0) as resp:
-                    if resp.getcode() == 200:
-                        data = json.loads(resp.read().decode("utf-8"))
-                        return data.get("readyConnections", 0) > 0
+        """Checks local metrics / API endpoint to confirm tunnel edge connection."""
+        loop = asyncio.get_running_loop()
+
+        def _probe():
+            try:
+                if self.provider == "ngrok":
+                    req = urllib.request.Request("http://127.0.0.1:4040/api/tunnels", headers={"User-Agent": "RTB-Watchdog"})
+                    with urllib.request.urlopen(req, timeout=3.0) as resp:
+                        if resp.getcode() == 200:
+                            data = json.loads(resp.read().decode("utf-8"))
+                            tunnels = data.get("tunnels", [])
+                            return len(tunnels) > 0
+                    return False
+                else:
+                    req = urllib.request.Request("http://127.0.0.1:20241/ready", headers={"User-Agent": "RTB-Watchdog"})
+                    with urllib.request.urlopen(req, timeout=3.0) as resp:
+                        if resp.getcode() == 200:
+                            data = json.loads(resp.read().decode("utf-8"))
+                            return data.get("readyConnections", 0) > 0
+                    return False
+            except Exception:
                 return False
-            return await loop.run_in_executor(None, _check)
-        except Exception:
-            return False
+
+        return await loop.run_in_executor(None, _probe)
 
     async def start_watchdog(self, bot=None):
         """
         Runs periodic health check every 30s.
-        Auto-restarts tunnel ONLY after 3 consecutive failures to avoid flapping and changing URLs unnecessarily.
+        Auto-restarts tunnel ONLY after 3 consecutive failures.
         """
-        logger.info("Tunnel Watchdog started (self-healing mode with local metrics probe).")
+        logger.info(f"Tunnel Watchdog started (provider: {self.provider}).")
         consecutive_failures = 0
         while True:
             await asyncio.sleep(30)
             pid = self.get_running_tunnel_pid()
             if not pid:
-                logger.warning("Cloudflared process is not running. Starting tunnel...")
+                logger.warning(f"{self.provider} process is not running. Launching tunnel...")
                 loop = asyncio.get_running_loop()
                 new_url = await loop.run_in_executor(None, self.start_tunnel_process)
                 if new_url and bot:
@@ -167,7 +204,7 @@ class TunnelManager:
                 consecutive_failures = 0
             else:
                 consecutive_failures += 1
-                logger.warning(f"Tunnel health check failed ({consecutive_failures}/3).")
+                logger.warning(f"Tunnel health check notice ({consecutive_failures}/3).")
                 if consecutive_failures >= 3:
                     logger.warning("Tunnel persistently unreachable for >90s. Self-healing restart triggered...")
                     loop = asyncio.get_running_loop()
@@ -178,3 +215,4 @@ class TunnelManager:
 
 
 tunnel_manager = TunnelManager()
+

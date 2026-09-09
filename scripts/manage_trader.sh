@@ -31,7 +31,7 @@ get_main_pid() {
 }
 
 get_tunnel_pid() {
-    pgrep -f "cloudflared.*tunnel" || true
+    pgrep -f "ngrok.*http" || pgrep -f "cloudflared.*tunnel" || true
 }
 
 get_mt5_pid() {
@@ -59,38 +59,52 @@ start_all() {
         echo -e "${GREEN}✅ Exness MT5 terminali allaqachon ishlab turibdi (PID: $MT5_PID)${RESET}"
     fi
 
-    # 2. Start Cloudflare Tunnel if not running
+    # 2. Start Tunnel (Ngrok Permanent or Cloudflare fallback)
+    TUNNEL_PROVIDER=$(grep -E "^TUNNEL_PROVIDER=" .env | cut -d '=' -f2 | tr -d ' ' || echo "ngrok")
+    NGROK_DOMAIN=$(grep -E "^NGROK_DOMAIN=" .env | cut -d '=' -f2 | tr -d ' ' || echo "")
+    
     TUNNEL_PID=$(get_tunnel_pid)
     if [ -z "$TUNNEL_PID" ]; then
-        echo -e "${YELLOW}⏳ Cloudflare xavfsiz tunneli ishga tushirilmoqda...${RESET}"
-        nohup ./cloudflared tunnel --protocol http2 --url http://localhost:8000 > "$TUNNEL_LOG" 2>&1 &
-        TUNNEL_PID=$!
-        echo "$TUNNEL_PID" > "$TUNNEL_PID_FILE"
-        
-        # Wait for tunnel URL
-        TUNNEL_URL=""
-        for i in {1..12}; do
-            sleep 1
-            TUNNEL_URL=$(grep -o "https://[a-zA-Z0-9.-]*\.trycloudflare\.com" "$TUNNEL_LOG" | tail -n 1 || true)
-            if [ -n "$TUNNEL_URL" ]; then
-                break
-            fi
-        done
-        
-        if [ -n "$TUNNEL_URL" ]; then
-            echo -e "${GREEN}✅ Cloudflare tunneli tayyor:${RESET} ${CYAN}$TUNNEL_URL${RESET}"
-            # Update .env
-            if grep -q "WEBAPP_URL=" .env; then
-                sed -i "s|WEBAPP_URL=.*|WEBAPP_URL=$TUNNEL_URL|" .env
-            else
-                echo "WEBAPP_URL=$TUNNEL_URL" >> .env
-            fi
+        if [ "$TUNNEL_PROVIDER" = "ngrok" ] && [ -n "$NGROK_DOMAIN" ] && [ -f "./ngrok" ]; then
+            echo -e "${YELLOW}⏳ Ngrok doimiy statik tunneli ishga tushirilmoqda...${RESET}"
+            nohup ./ngrok http 8000 --url="https://$NGROK_DOMAIN" > "$TUNNEL_LOG" 2>&1 &
+            TUNNEL_PID=$!
+            echo "$TUNNEL_PID" > "$TUNNEL_PID_FILE"
+            sleep 2
+            TUNNEL_URL="https://$NGROK_DOMAIN"
+            echo -e "${GREEN}✅ Ngrok doimiy tunneli tayyor:${RESET} ${CYAN}$TUNNEL_URL${RESET}"
+            sed -i "s|WEBAPP_URL=.*|WEBAPP_URL=$TUNNEL_URL|" .env
         else
-            echo -e "${YELLOW}⚠️ Tunnel ishga tushdi, havola birozdan so'ng chiqadi.${RESET}"
+            echo -e "${YELLOW}⏳ Cloudflare xavfsiz tunneli ishga tushirilmoqda...${RESET}"
+            nohup ./cloudflared tunnel --protocol http2 --url http://localhost:8000 > "$TUNNEL_LOG" 2>&1 &
+            TUNNEL_PID=$!
+            echo "$TUNNEL_PID" > "$TUNNEL_PID_FILE"
+            
+            # Wait for tunnel URL
+            TUNNEL_URL=""
+            for i in {1..12}; do
+                sleep 1
+                TUNNEL_URL=$(grep -o "https://[a-zA-Z0-9.-]*\.trycloudflare\.com" "$TUNNEL_LOG" | tail -n 1 || true)
+                if [ -n "$TUNNEL_URL" ]; then
+                    break
+                fi
+            done
+            
+            if [ -n "$TUNNEL_URL" ]; then
+                echo -e "${GREEN}✅ Cloudflare tunneli tayyor:${RESET} ${CYAN}$TUNNEL_URL${RESET}"
+                if grep -q "WEBAPP_URL=" .env; then
+                    sed -i "s|WEBAPP_URL=.*|WEBAPP_URL=$TUNNEL_URL|" .env
+                else
+                    echo "WEBAPP_URL=$TUNNEL_URL" >> .env
+                fi
+            else
+                echo -e "${YELLOW}⚠️ Tunnel ishga tushdi, havola birozdan so'ng chiqadi.${RESET}"
+            fi
         fi
     else
-        echo -e "${GREEN}✅ Cloudflare tunneli ishlab turibdi (PID: $TUNNEL_PID)${RESET}"
+        echo -e "${GREEN}✅ Xavfsiz tunnel allaqachon ishlab turibdi (PID: $TUNNEL_PID)${RESET}"
     fi
+
 
     # 3. Start Python Backend & Telegram Bot (main.py)
     MAIN_PID=$(get_main_pid)
@@ -126,12 +140,14 @@ stop_all() {
 
     TUNNEL_PID=$(get_tunnel_pid)
     if [ -n "$TUNNEL_PID" ]; then
-        echo -e "${YELLOW}Cloudflare tunnel to'xtatilmoqda (PID: $TUNNEL_PID)...${RESET}"
+        echo -e "${YELLOW}Xavfsiz tunnel to'xtatilmoqda (PID: $TUNNEL_PID)...${RESET}"
         kill -15 $TUNNEL_PID 2>/dev/null || kill -9 $TUNNEL_PID 2>/dev/null || true
+        pkill -9 -f "ngrok" 2>/dev/null || true
+        pkill -9 -f "cloudflared" 2>/dev/null || true
         rm -f "$TUNNEL_PID_FILE"
-        echo -e "${GREEN}✅ Cloudflare tunnel to'xtatildi.${RESET}"
+        echo -e "${GREEN}✅ Xavfsiz tunnel to'xtatildi.${RESET}"
     else
-        echo "Cloudflare tunnel ishlamayapti."
+        echo "Xavfsiz tunnel ishlamayapti."
     fi
 
     echo -e "${CYAN}💡 Eslatma: Exness MT5 ochiq qoldirildi. Agar MT5 ni ham yopmoqchi bo'lsangiz: 'killall terminal64.exe' buyrug'ini bering.${RESET}"
@@ -157,13 +173,14 @@ status_all() {
     fi
 
     TUNNEL_PID=$(get_tunnel_pid)
-    TUNNEL_URL=$(grep -o "https://[a-zA-Z0-9.-]*\.trycloudflare\.com" "$TUNNEL_LOG" 2>/dev/null | tail -n 1 || true)
+    CURRENT_WEBAPP_URL=$(grep -E "^WEBAPP_URL=" .env | cut -d '=' -f2 | tr -d ' ' || echo "")
     if [ -n "$TUNNEL_PID" ]; then
-        echo -e "🌐 Cloudflare Tunnel:${GREEN}ISHLAMOQDA 🟢${RESET} (PID: $TUNNEL_PID)"
-        echo -e "🔗 Jonli Mini App:   ${CYAN}${TUNNEL_URL:-https://luxury-for-exceptional-toolkit.trycloudflare.com}${RESET}"
+        echo -e "🌐 Doimiy Tunnel:    ${GREEN}ISHLAMOQDA 🟢${RESET} (PID: $TUNNEL_PID)"
+        echo -e "🔗 Jonli Mini App:   ${CYAN}${CURRENT_WEBAPP_URL}${RESET}"
     else
-        echo -e "🌐 Cloudflare Tunnel:${RED}TO'XTATILGAN 🔴${RESET}"
+        echo -e "🌐 Doimiy Tunnel:    ${RED}TO'XTATILGAN 🔴${RESET}"
     fi
+
 
     echo -e "${CYAN}------------------------------------------------------${RESET}"
     # Live API status check

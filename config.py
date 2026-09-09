@@ -53,9 +53,15 @@ class Config:
     DB_PATH: str = str(BASE_DIR / "data" / "trading_system.db")
     EXCEL_EXPORT_PATH: str = str(BASE_DIR / "data" / "xatolar.xlsx")
 
+    # Tunnel Provider (ngrok or cloudflared)
+    TUNNEL_PROVIDER: str = os.getenv("TUNNEL_PROVIDER", "ngrok")
+    NGROK_DOMAIN: str = os.getenv("NGROK_DOMAIN", "")
+    NGROK_AUTHTOKEN: str = os.getenv("NGROK_AUTHTOKEN", "")
+
     # WebApp & API Server
     WEBAPP_HOST: str = os.getenv("WEBAPP_HOST", "0.0.0.0")
     WEBAPP_PORT: int = int(os.getenv("WEBAPP_PORT", "8000"))
+
 
     @property
     def WEBAPP_URL(self) -> str:
