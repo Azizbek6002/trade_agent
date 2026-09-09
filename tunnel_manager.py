@@ -81,16 +81,15 @@ class TunnelManager:
             logger.info(f"🟢 Ngrok Permanent Static Tunnel online: {fixed_url}")
             return fixed_url
 
-        # 2. Fallback to Cloudflare HTTP/2
+        # 2. Cloudflare Tunnel (Zero interstitial warning, native Telegram WebApp)
         if CLOUDFLARED_BIN.exists():
             cmd = [
                 str(CLOUDFLARED_BIN),
                 "tunnel",
                 "--metrics", "127.0.0.1:20241",
-                "--protocol", "http2",
                 "--url", f"http://localhost:{config.WEBAPP_PORT}"
             ]
-            logger.info("Starting Cloudflare HTTP/2 Tunnel daemon...")
+            logger.info("Starting Cloudflare Tunnel daemon...")
             with open(TUNNEL_LOG, "a") as out:
                 self._process = subprocess.Popen(
                     cmd,
@@ -99,7 +98,7 @@ class TunnelManager:
                     start_new_session=True
                 )
 
-            for _ in range(15):
+            for _ in range(25):
                 import time
                 time.sleep(1)
                 url = self.extract_url_from_log()
@@ -142,18 +141,21 @@ class TunnelManager:
 
     async def update_telegram_menu_button(self, bot):
         """Refreshes the Telegram Menu Button for admin with the latest URL."""
-        if not config.ADMIN_TELEGRAM_ID:
+        if not config.ADMIN_TELEGRAM_ID or not bot:
             return
         from aiogram.types import MenuButtonWebApp, WebAppInfo
-        try:
-            admin_url = f"{self.current_url}?admin_key={config.ADMIN_TELEGRAM_ID}"
-            await bot.set_chat_menu_button(
-                chat_id=config.ADMIN_TELEGRAM_ID,
-                menu_button=MenuButtonWebApp(text="RTB App", web_app=WebAppInfo(url=admin_url))
-            )
-            logger.info(f"Refreshed Admin Telegram Menu Button with {admin_url}")
-        except Exception as e:
-            logger.warning(f"Could not update Telegram menu button: {e}")
+        admin_url = f"{self.current_url}?admin_key={config.ADMIN_TELEGRAM_ID}"
+        for attempt in range(3):
+            try:
+                await bot.set_chat_menu_button(
+                    chat_id=config.ADMIN_TELEGRAM_ID,
+                    menu_button=MenuButtonWebApp(text="RTB App", web_app=WebAppInfo(url=admin_url))
+                )
+                logger.info(f"Refreshed Admin Telegram Menu Button with {admin_url}")
+                return
+            except Exception as e:
+                logger.warning(f"Could not update Telegram menu button (attempt {attempt+1}/3): {e}")
+                await asyncio.sleep(2)
 
     async def check_tunnel_healthy(self) -> bool:
         """Checks local metrics / API endpoint to confirm tunnel edge connection."""
@@ -184,7 +186,7 @@ class TunnelManager:
     async def start_watchdog(self, bot=None):
         """
         Runs periodic health check every 30s.
-        Auto-restarts tunnel ONLY after 3 consecutive failures.
+        Auto-restarts tunnel ONLY after 6 consecutive failures (3 mins).
         """
         logger.info(f"Tunnel Watchdog started (provider: {self.provider}).")
         consecutive_failures = 0
@@ -205,9 +207,9 @@ class TunnelManager:
                 consecutive_failures = 0
             else:
                 consecutive_failures += 1
-                logger.warning(f"Tunnel health check notice ({consecutive_failures}/3).")
-                if consecutive_failures >= 3:
-                    logger.warning("Tunnel persistently unreachable for >90s. Self-healing restart triggered...")
+                logger.warning(f"Tunnel health check notice ({consecutive_failures}/6).")
+                if consecutive_failures >= 6:
+                    logger.warning("Tunnel persistently unreachable for >3m. Self-healing restart triggered...")
                     loop = asyncio.get_running_loop()
                     new_url = await loop.run_in_executor(None, self.start_tunnel_process)
                     if new_url and bot:
